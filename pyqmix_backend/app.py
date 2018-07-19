@@ -1,63 +1,104 @@
 from flask import Flask, render_template, request
-from pyqmix import QmixBus, config
+from flask_restplus import Api, Resource
+from flask_restplus.fields import Float
+from pyqmix import QmixBus, config, QmixPump
 import os.path as op
 
 app = Flask(__name__)
-
+api = Api(app)
 
 ## --- App definitions --- ##
 
-# Is this how I combine Flask and React?
-@app.route('/')
-def detected_pumps():
-    pump_list = detect_pumps()
-    return render_template('App.js', pumpList=pump_list)
 
-@app.route('/refill', methods=['POST'])
-def refill():
-    payload = request.json
-    pump_ID = payload['pumpID']
-    nb_rep = payload['nbRep']
-    target_volume = payload['targetVolume']
-    flow_rate = payload['flowRate']
+pumps = []
 
-    pump_refill(pump_ID, nb_rep, target_volume, flow_rate)
+pump_client_request = api.model('Pump Request', {
+    'target_vol': Float(description='Target volume',
+                        required=True,
+                        example=5.0),
+    'flow_rate': Float(description='Flow rate',
+                       required=True,
+                       example=0.25)})
 
-    print(f'Pumping {flow_rate} ....')
-    return 201
 
-@app.route('/bubbleCycle', methods=['POST'])
-def bubble_cycle():
-    payload = request.json
-    pump_ID = payload['pumpID']
-    volume = payload['volume']
-    flow_rate = payload['flowRate']
+@api.route('/api/pumps/<int:pump_id>')
+class Pump(Resource):
+    def get(self, pump_id):
+        return f'You requsted pump {pump_id}.'
 
-    print(f'Pumping {flow_rate} ....')
-    return 201
+    @api.expect(pump_client_request)
+    def put(self, pump_id):
+        payload = request.json
+        target_vol = payload['target_vol']
+        flow_rate = payload['flow_rate']
 
-@app.route('/rinse', methods=['POST'])
-def rinse():
-    payload = request.json
-    pump_ID = payload['pumpID']
-    nb_rep = payload['nbRep']
-    syringe_volume = payload['syringeVolume']
-    flow_rate = payload['flowRate']
+        return (f'You requsted to pump on pump {pump_id},'
+                f'target vol: {target_vol}, '
+                f'flow rate: {flow_rate}.')
 
-    print(f'Pumping {flow_rate} ....')
-    return 201
+@api.route('/api/')
+class Main(Resource):
+    # Is this how I combine Flask and React?
+    def get(self):
+        # pump_list = detect_pumps()
+        # return render_template('', pumpList=pump_list)
+        response = {'foo': 1, 'bar': 2}
+        return response
 
-@app.route('/empty', methods=['POST'])
-def empty():
-    payload = request.json
-    pump_ID = payload['pumpID']
-    nb_rep = payload['nbRep']
-    syringe_volume = payload['syringeVolume']
-    flow_rate = payload['flowRate']
+        post()
 
-    print(f'Pumping {flow_rate} ....')
-    return 201
+    def post(self):
+        response = {'foo': 1, 'bar': 2}
+        return response
 
+
+@api.route('/api/refill')
+class Refill(Resource):
+    def post(self):
+        payload = request.json
+        pump_ID = payload['pumpID']
+        nb_rep = payload['nbRep']
+        target_volume = payload['targetVolume']
+        flow_rate = payload['flowRate']
+
+        pump_refill(pump_ID, nb_rep, target_volume, flow_rate)
+
+        print(f'Pumping {flow_rate} ....')
+        return 201
+
+@api.route('/api/bubbleCycle')
+class BubbleCycle(Resource):
+    def post(self):
+        payload = request.json
+        pump_ID = payload['pumpID']
+        volume = payload['volume']
+        flow_rate = payload['flowRate']
+
+        print(f'Pumping {flow_rate} ....')
+        return 201
+
+# @app.route('/rinse', methods=['POST'])
+# def rinse():
+#     payload = request.json
+#     pump_ID = payload['pumpID']
+#     nb_rep = payload['nbRep']
+#     syringe_volume = payload['syringeVolume']
+#     flow_rate = payload['flowRate']
+#
+#     print(f'Pumping {flow_rate} ....')
+#     return 201
+#
+# @app.route('/empty', methods=['POST'])
+# def empty():
+#     payload = request.json
+#     pump_ID = payload['pumpID']
+#     nb_rep = payload['nbRep']
+#     syringe_volume = payload['syringeVolume']
+#     flow_rate = payload['flowRate']
+#
+#     print(f'Pumping {flow_rate} ....')
+#     return 201
+#
 
 ## --- Functions --- ##
 
@@ -73,7 +114,14 @@ def detect_pumps():
 
     QmixBus()
 
-    return pump_list  # And maybe handles? - or if that'snot possible then fill-level etc.
+    nb_pumps = QmixPump(index=0).n_pumps
+
+    pump_list = [QmixPump(index=pump_index) for pump_index in range(0,nb_pumps)]
+
+    # Make a dictionary of the pumps to return to the front-end
+
+    return pump_list  # Or fill-level etc.
+
 
 def pump_refill(pump_ID, nb_rep, target_volume, flow_rate):
 
@@ -84,6 +132,11 @@ def pump_refill(pump_ID, nb_rep, target_volume, flow_rate):
 
     pump.setfill_level(target_volume, flow_rate, blocking_wait=True)
 
+def pump_empty():
+    pass
+
+def close_bus():
+    bus.close()
 
 
 if __name__ == '__main__':

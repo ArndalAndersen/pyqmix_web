@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import { Button, ButtonGroup, FormGroup, Input, Label } from 'reactstrap';
+import { Button, ButtonGroup, FormGroup, Input, Label, Modal,
+        ModalHeader, ModalBody, ModalFooter} from 'reactstrap';
 import logo from './snake.svg';
 import './App.css';
 
@@ -29,9 +30,12 @@ class PumpForm extends Component {
    this.setState({ isPumpDetected: !this.state.isPumpDetected })
     var payload = {}
     console.log(payload)
-    fetch('/detect_pumps', {
+    const response = fetch('/detect_pumps', {
       }
     )
+
+    response
+      .then(r => this.setState({availablePumps: r}))
   }
 
   handlePumpList(selected) {
@@ -50,15 +54,19 @@ class PumpForm extends Component {
     return (
       <div className="pump-form">
 
-        {/*Button to detect pumps.*/}
-        {/*<Button color="success" onClick={this.handleDetectPumps}> Detect pumps*/}
-        {/*</Button>*/}
+        Button to detect pumps.
+        <Button color="success" onClick={this.handleDetectPumps}> Detect pumps
+        </Button>
 
 
         <h5>Select pumps</h5>
         <ButtonGroup>
           {this.state.availablePumps.map(pump_index =>
-            <Button color="primary" onClick={() => this.handlePumpList(pump_index)} active={this.state.pumpList.includes(pump_index)}>{pump_index.toString()}</Button>
+            <Button color="primary"
+                    onClick={() => this.handlePumpList(pump_index)}
+                    active={this.state.pumpList.includes(pump_index)}>
+              {pump_index.toString()}
+            </Button>
           )}
         </ButtonGroup>
         <p>Selected: {JSON.stringify(this.state.pumpList)}</p>
