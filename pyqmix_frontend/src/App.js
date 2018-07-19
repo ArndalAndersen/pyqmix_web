@@ -20,7 +20,8 @@ class PumpForm extends Component {
     flowUnit: "",
     volumeUnit: "",
     currentFillLevel: "",  // Instead, use the pump-object
-    pumpNumber: ""
+    pumpNumber: "",
+    modal: false
   };
 
   // If I want a separate function that detects pumps
@@ -38,7 +39,7 @@ class PumpForm extends Component {
       .then(r => this.setState({availablePumps: r}))
   }
 
-  handlePumpList(selected) {
+  handlePumpList = (selected) => {
     const index = this.state.pumpList.indexOf(selected);
     if (index < 0) {
       this.state.pumpList.push(selected);
@@ -50,11 +51,12 @@ class PumpForm extends Component {
 
   handleRefill
 
+  toggle = () => { this.setState({modal: !this.state.modal}) };
+
   render() {
     return (
       <div className="pump-form">
 
-        Button to detect pumps.
         <Button color="success" onClick={this.handleDetectPumps}> Detect pumps
         </Button>
 
@@ -71,8 +73,19 @@ class PumpForm extends Component {
         </ButtonGroup>
         <p>Selected: {JSON.stringify(this.state.pumpList)}</p>
 
-        <Button color="success" onClick={this.handleRefill}> Refill </Button>
-
+        <Button color="success" onClick={this.toggle}> Refill </Button>
+        <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+          <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
+          <ModalBody>
+            Have you remembered to:
+            1) remove the spray head from the outlet?
+            2) insert the inlet tube into the stimulus?
+          </ModalBody>
+          <ModalFooter>
+            <Button color="success" onClick={this.toggle}> Continue </Button>{' '}
+            <Button color="danger" onClick={this.toggle}> Cancel </Button>
+          </ModalFooter>
+        </Modal>
         <FormGroup className="form-group">
           <Label>Flow rate</Label>
           <Input type="number" name="targetVolume" min="0"
@@ -88,14 +101,10 @@ class PumpForm extends Component {
             </Input>
         </FormGroup>
 
-
-
-
       </div>
     )
   }
 };
-
 
 // Here I put the stuff on the webpage
 class App extends Component {
@@ -113,7 +122,5 @@ class App extends Component {
     );
   }
 }
-
-
 
 export default App;

@@ -9,7 +9,6 @@ api = Api(app)
 
 ## --- App definitions --- ##
 
-
 pumps = []
 
 pump_client_request = api.model('Pump Request', {
@@ -19,7 +18,6 @@ pump_client_request = api.model('Pump Request', {
     'flow_rate': Float(description='Flow rate',
                        required=True,
                        example=0.25)})
-
 
 @api.route('/api/pumps/<int:pump_id>')
 class Pump(Resource):
@@ -38,19 +36,15 @@ class Pump(Resource):
 
 @api.route('/api/')
 class Main(Resource):
-    # Is this how I combine Flask and React?
     def get(self):
         # pump_list = detect_pumps()
         # return render_template('', pumpList=pump_list)
         response = {'foo': 1, 'bar': 2}
         return response
 
-        post()
-
     def post(self):
         response = {'foo': 1, 'bar': 2}
         return response
-
 
 @api.route('/api/refill')
 class Refill(Resource):
@@ -77,28 +71,6 @@ class BubbleCycle(Resource):
         print(f'Pumping {flow_rate} ....')
         return 201
 
-# @app.route('/rinse', methods=['POST'])
-# def rinse():
-#     payload = request.json
-#     pump_ID = payload['pumpID']
-#     nb_rep = payload['nbRep']
-#     syringe_volume = payload['syringeVolume']
-#     flow_rate = payload['flowRate']
-#
-#     print(f'Pumping {flow_rate} ....')
-#     return 201
-#
-# @app.route('/empty', methods=['POST'])
-# def empty():
-#     payload = request.json
-#     pump_ID = payload['pumpID']
-#     nb_rep = payload['nbRep']
-#     syringe_volume = payload['syringeVolume']
-#     flow_rate = payload['flowRate']
-#
-#     print(f'Pumping {flow_rate} ....')
-#     return 201
-#
 
 ## --- Functions --- ##
 
@@ -137,7 +109,6 @@ def pump_empty():
 
 def close_bus():
     bus.close()
-
 
 if __name__ == '__main__':
     app.run()
