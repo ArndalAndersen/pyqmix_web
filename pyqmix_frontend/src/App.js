@@ -26,18 +26,23 @@ class PumpForm extends Component {
 
   // If I want a separate function that detects pumps
   // But I actually just want to send a go-ahead signal and get a list in return. How do I do both?
-  handleDetectPumps(e) {
+  handleDetectPumps = (e) => {
    e.preventDefault();
-   this.setState({ isPumpDetected: !this.state.isPumpDetected })
-    var payload = {}
-    console.log(payload)
-    const response = fetch('/detect_pumps', {
-      }
-    )
+   this.setState({ isPumpDetected: !this.state.isPumpDetected });
+    const payload = { initiate: 1 };
+    console.log(payload); //example from html script, not sure whether it would work here
+    const response = fetch('/api/pumps', {
+      method: 'put',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-    response
-      .then(r => this.setState({availablePumps: r}))
-  }
+    // response
+      // .then(r => this.setState({availablePumps: r}))
+  };
 
   handlePumpList = (selected) => {
     const index = this.state.pumpList.indexOf(selected);
@@ -47,13 +52,11 @@ class PumpForm extends Component {
       this.state.pumpList.splice(index, 1);
     }
     this.setState({ pumpList: [...this.state.pumpList] });
-  }
-
-  handleRefill
+  };
 
   toggle = () => { this.setState({modal: !this.state.modal}) };
 
-  render() {
+  render = () => {
     return (
       <div className="pump-form">
 
@@ -65,6 +68,7 @@ class PumpForm extends Component {
         <ButtonGroup>
           {this.state.availablePumps.map(pump_index =>
             <Button color="primary"
+                    key={pump_index}
                     onClick={() => this.handlePumpList(pump_index)}
                     active={this.state.pumpList.includes(pump_index)}>
               {pump_index.toString()}
@@ -82,7 +86,7 @@ class PumpForm extends Component {
             2) insert the inlet tube into the stimulus?
           </ModalBody>
           <ModalFooter>
-            <Button color="success" onClick={this.toggle}> Continue </Button>{' '}
+            <Button color="success" onClick={this.toggle}> Continue </Button>
             <Button color="danger" onClick={this.toggle}> Cancel </Button>
           </ModalFooter>
         </Modal>

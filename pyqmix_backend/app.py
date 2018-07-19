@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from flask_restplus import Api, Resource
-from flask_restplus.fields import Float
+from flask_restplus.fields import Float, Boolean
 from pyqmix import QmixBus, config, QmixPump
 import os.path as op
 
@@ -18,6 +18,22 @@ pump_client_request = api.model('Pump Request', {
     'flow_rate': Float(description='Flow rate',
                        required=True,
                        example=0.25)})
+
+initiate_pumps_request = api.model('Initiate pumps', {
+    'initiate': Boolean(desription='Initiate pumps',
+                      required=True,
+                      example=True)})
+
+
+@api.route('/api/pumps')
+class InitiatePumps(Resource):
+    @api.expect(initiate_pumps_request)
+    def put(self):  # Post: client posts info
+        payload = request.json
+        initiate = payload['initiate']
+        print(payload)  # Goes to python console
+
+        return f'Initiate the pumps if says 1: {initiate}'  #Where does this go?
 
 @api.route('/api/pumps/<int:pump_id>')
 class Pump(Resource):
@@ -60,16 +76,6 @@ class Refill(Resource):
         print(f'Pumping {flow_rate} ....')
         return 201
 
-@api.route('/api/bubbleCycle')
-class BubbleCycle(Resource):
-    def post(self):
-        payload = request.json
-        pump_ID = payload['pumpID']
-        volume = payload['volume']
-        flow_rate = payload['flowRate']
-
-        print(f'Pumping {flow_rate} ....')
-        return 201
 
 
 ## --- Functions --- ##
