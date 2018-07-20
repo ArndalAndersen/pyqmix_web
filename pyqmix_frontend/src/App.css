@@ -27,8 +27,39 @@
   to { transform: rotate(360deg); }
 }
 
-.form-group {
-  display: inline;
+
+/*Mystyle is below*/
+body {
+    text-align: center;
+
 }
 
+#main {
+    background-color: white;
+    border: 2px solid gray;
+    width: 60%;
+    max-width: 500px;
+    min-width: 300px;
+    text-align: center;
+    margin: 30px auto 30px auto;
+    padding: 20px;
+}
+
+.button-group {
+  padding: 10px 0px 10px 0px;
+
+}
+
+.refill-subform {
+  display: inline-block;
+  padding: 0px 0px 0px 0px;
+  margin: 5px 5px 5px 0;
+  vertical-align: top;
+}
+
+.refill-form {
+  border: 2px solid black;
+  padding: 0px 0px 0px 0px;
+  margin: 10px 5px 5px 0;
+}
 

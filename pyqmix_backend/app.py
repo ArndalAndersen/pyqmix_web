@@ -30,11 +30,15 @@ class InitiatePumps(Resource):
     @api.expect(initiate_pumps_request)
     def put(self):  # Post: client posts info
         payload = request.json
-        initiate = payload['initiate']
+        initiate_pumps = payload['initiate']
         print(payload)  # Goes to python console
 
+        availablePumps = [10]
+        if payload:
+            availablePumps = [0, 1, 2, 3, 4]
+
         # I then return the available pumps
-        return [0,1,2,3,4] #Where does this go?
+        return availablePumps
 
 @api.route('/api/pumps/<int:pump_id>')
 class Pump(Resource):
