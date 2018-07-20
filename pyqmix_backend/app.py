@@ -21,8 +21,8 @@ pump_client_request = api.model('Pump Request', {
 
 initiate_pumps_request = api.model('Initiate pumps', {
     'initiate': Boolean(desription='Initiate pumps',
-                      required=True,
-                      example=True)})
+                        required=True,
+                        example=True)})
 
 
 @api.route('/api/pumps')
@@ -33,7 +33,8 @@ class InitiatePumps(Resource):
         initiate = payload['initiate']
         print(payload)  # Goes to python console
 
-        return f'Initiate the pumps if says 1: {initiate}'  #Where does this go?
+        # I then return the available pumps
+        return [0,1,2,3,4] #Where does this go?
 
 @api.route('/api/pumps/<int:pump_id>')
 class Pump(Resource):
@@ -75,8 +76,6 @@ class Refill(Resource):
 
         print(f'Pumping {flow_rate} ....')
         return 201
-
-
 
 ## --- Functions --- ##
 

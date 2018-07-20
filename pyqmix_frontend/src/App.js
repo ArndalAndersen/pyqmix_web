@@ -9,7 +9,9 @@ class PumpForm extends Component {
   state = {
     isPumpDetected: false,
     // availablePumps: pumpList,  //Comes from flask
+    // availablePumps: [0,1,2,3,4],
     availablePumps: [0,1,2,3,4],
+    availablePumpsTEST: [],
     pumpList: [],
     fillLevel: "",
     syringeSize: "",
@@ -29,7 +31,7 @@ class PumpForm extends Component {
   handleDetectPumps = (e) => {
    e.preventDefault();
    this.setState({ isPumpDetected: !this.state.isPumpDetected });
-    const payload = { initiate: 1 };
+    const payload = { initiate: true };
     console.log(payload); //example from html script, not sure whether it would work here
     const response = fetch('/api/pumps', {
       method: 'put',
@@ -40,8 +42,17 @@ class PumpForm extends Component {
       body: JSON.stringify(payload)
     });
 
-    // response
-      // .then(r => this.setState({availablePumps: r}))
+    // Asynchronous function call using then :o)
+    response
+      .then(r => {return r.json()})
+      .then(json => this.setState({availablePumpsTEST: json}))
+
+    // response.then(console.log({'success': 'great'}));  //this writes great in the console :)
+
+    // response.then(
+    //   r => {console.log(r)},
+    //   reason => {console.log(reason)});  //Works, but I cannot access the response value....
+    // // response.then(r => this.setState({availablePumps: r}))
   };
 
   handlePumpList = (selected) => {
@@ -63,10 +74,9 @@ class PumpForm extends Component {
         <Button color="success" onClick={this.handleDetectPumps}> Detect pumps
         </Button>
 
-
         <h5>Select pumps</h5>
         <ButtonGroup>
-          {this.state.availablePumps.map(pump_index =>
+          {this.state.availablePumpsTEST.map(pump_index =>
             <Button color="primary"
                     key={pump_index}
                     onClick={() => this.handlePumpList(pump_index)}
