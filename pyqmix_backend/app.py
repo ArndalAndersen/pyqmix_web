@@ -1,59 +1,103 @@
-from flask import Flask, render_template, request
+from flask import Flask, request
 from flask_restplus import Api, Resource
-from flask_restplus.fields import Float, Boolean
+from flask_restplus.fields import Float, Boolean, String
 from pyqmix import QmixBus, config, QmixPump
 import os.path as op
+import time
 
 app = Flask(__name__)
 api = Api(app)
 
-## --- App definitions --- ##
+persistant_objects = {
+    'bus': None,
+    'pumps': {},
+    'starting_pumps_timer': None,
+    'ispumping': None,
+    'get_pumps_states_call_count': 0}
 
-pumps = []
+## --- Choose session type --- ##
+app.config.from_object(__name__)
+app.config['test_session'] = True
+app.secret_key = 'Camilla'
 
-pump_client_request = api.model('Pump Request', {
-    'target_vol': Float(description='Target volume',
+## --- Flask-RESTPlus models --- ##
+pump_client_request = api.model('Refill request', {
+    'targetVolume': Float(description='Target volume',
                         required=True,
                         example=5.0),
-    'flow_rate': Float(description='Flow rate',
+    'volumeUnit': String(description='Volume unit',
+                        required=True,
+                        example='mL'),
+    'flowRate': Float(description='Flow rate',
                        required=True,
-                       example=0.25)})
+                       example=0.25),
+    'flowUnit': String(description='Flow unit',
+                      required=True,
+                      example='mL/s')})
 
 initiate_pumps_request = api.model('Initiate pumps', {
-    'initiate': Boolean(desription='Initiate pumps',
+    'PumpInitiate': Boolean(desription='Initiate pumps',
                         required=True,
                         example=True)})
 
+## --- Endpoints --- ##
 
 @api.route('/api/pumps')
 class InitiatePumps(Resource):
+
+    def get(self):
+        persistant_objects['get_pumps_states_call_count'] +=1
+        pump_states = []
+        for pump_id in persistant_objects['pumps']:
+            pump_state = get_pump_status(pump_id)
+            pump_states.append(pump_state)
+
+        return pump_states
+
     @api.expect(initiate_pumps_request)
     def put(self):  # Post: client posts info
         payload = request.json
-        initiate_pumps = payload['initiate']
+        initiate_pumps = payload['PumpInitiate']
         print(payload)  # Goes to python console
 
-        availablePumps = [10]
-        if payload:
-            availablePumps = [0, 1, 2, 3, 4]
+        if initiate_pumps:
+            # How do I update the local variable with this value?
+            detect_and_find_availablePumps()
+        else:
+            disconnect_pumps()
 
-        # I then return the available pumps
-        return availablePumps
+        available_pumps = list(persistant_objects['pumps'].keys())
+
+        return available_pumps
+
 
 @api.route('/api/pumps/<int:pump_id>')
-class Pump(Resource):
+class Pumps(Resource):
     def get(self, pump_id):
-        return f'You requsted pump {pump_id}.'
+
+        pump_status = get_pump_status(pump_id)
+
+        return pump_status
 
     @api.expect(pump_client_request)
     def put(self, pump_id):
         payload = request.json
-        target_vol = payload['target_vol']
-        flow_rate = payload['flow_rate']
+        target_volume = payload['targetVolume']
+        volume_unit = payload['volumeUnit']
+        flow_rate = payload['flowRate']
+        flow_unit = payload['flowUnit']
 
-        return (f'You requsted to pump on pump {pump_id},'
-                f'target vol: {target_vol}, '
-                f'flow rate: {flow_rate}.')
+        # Initiate pump command
+        start_pumping(pump_id=pump_id, target_volume=target_volume, volume_unit=volume_unit, flow_rate=flow_rate, flow_unit=flow_unit)
+
+        return 201
+
+@api.route('/api/ispumping')
+class IsPumping(Resource):
+
+    def get(self):
+        ispumping()
+        return persistant_objects['ispumping']
 
 @api.route('/api/')
 class Main(Resource):
@@ -67,57 +111,99 @@ class Main(Resource):
         response = {'foo': 1, 'bar': 2}
         return response
 
-@api.route('/api/refill')
-class Refill(Resource):
-    def post(self):
-        payload = request.json
-        pump_ID = payload['pumpID']
-        nb_rep = payload['nbRep']
-        target_volume = payload['targetVolume']
-        flow_rate = payload['flowRate']
-
-        pump_refill(pump_ID, nb_rep, target_volume, flow_rate)
-
-        print(f'Pumping {flow_rate} ....')
-        return 201
 
 ## --- Functions --- ##
 
-def detect_pumps():
+def detect_and_find_availablePumps():
 
-    # Initialize connection to the pump system.
-    # Example must be updated!
-    config_dir = op.normpath('D:/pyqmix_test/config....')
-    dll_dir = op.normpath('D:/pyqmix_test/dlls....')
+    if app.config['test_session']:
+        available_pumps = list(range(0, 5))
+        pump_objects = list(range(0, 5))
+        persistant_objects['bus'] = 'I am a Qmix Bus.'
+    else:
+        # Initialize connection to the pump system.
+        config_dir = op.normpath('C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/one_pump')
+        dll_dir = op.normpath('C:/Users/au278141/AppData/Local/QmixSDK')
 
-    config.set_qmix_config_dir(config_dir)
-    config.set_qmix_dll_dir(dll_dir)
+        config.set_qmix_config_dir(config_dir)
+        config.set_qmix_dll_dir(dll_dir)
 
-    QmixBus()
+        persistant_objects['bus'] = QmixBus()
 
-    nb_pumps = QmixPump(index=0).n_pumps
+        nb_pumps = QmixPump(index=0).n_pumps
 
-    pump_list = [QmixPump(index=pump_index) for pump_index in range(0,nb_pumps)]
+        available_pumps = [str(i) for i in range(0,nb_pumps)]
+        pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
 
-    # Make a dictionary of the pumps to return to the front-end
+    # Dict from zip
+    persistant_objects['pumps'] = dict(zip(available_pumps, pump_objects))
 
-    return pump_list  # Or fill-level etc.
+
+def disconnect_pumps():
+
+    if not app.config['test_session']:
+        bus = persistant_objects['bus']
+        bus.close()
+
+    print(f'Bus before "closing": {persistant_objects["bus"]}')
+    persistant_objects['bus'] = None
+    print(f'Bus after "closing": {persistant_objects["bus"]}')
+
+    persistant_objects['pumps'] = {}
+
+def start_pumping(pump_id, target_volume, volume_unit, flow_rate, flow_unit):
+
+    if app.config['test_session']:
+        persistant_objects['starting_pumps_timer'] = time.time()
+        print(f'Starting virtual pump: {pump_id} and setting '
+              f'target_volume to {target_volume} {volume_unit} '
+              f'at {flow_rate} {flow_unit}')
+    else:
+        persistant_objects['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
+
+def ispumping():
+
+    if app.config['test_session']:
+        time_when_pumps_started = persistant_objects['starting_pumps_timer']
+        time_now = time.time()
+        seconds_since_pump_initiation = time_now - time_when_pumps_started
+        if seconds_since_pump_initiation < 15:
+            persistant_objects['ispumping'] = True
+        else:
+            persistant_objects['ispumping'] = False
+
+    else:
+        ispumping_pumps = [pump.ispumping for pump_name, pump in persistant_objects['pumps'].items()]
+        if any(ispumping_pumps):
+            persistant_objects['ispumping'] = True
+        else:
+            persistant_objects['ispumping'] = False
 
 
-def pump_refill(pump_ID, nb_rep, target_volume, flow_rate):
 
-    for rep in nb_rep:
-        for pump in pump_ID:
-            pump.setfill_level(target_volume, flow_rate, blocking_wait=True)
-            pump.setfill_level(0, flow_rate, blocking_wait=True)
+def get_pump_status(pump_id):
 
-    pump.setfill_level(target_volume, flow_rate, blocking_wait=True)
+    pump = persistant_objects['pumps'][pump_id]
 
-def pump_empty():
-    pass
 
-def close_bus():
-    bus.close()
+    if app.config['test_session']:
+        pump_status = {
+            'index': pump_id,
+            'isPumping': persistant_objects['get_pumps_states_call_count']%5 != 0,
+            'fill_level': 20,
+            'volume_unit': 'mL',
+            'name': 'Midpressure 3'}
+
+    else:
+        pump_status = {
+            'index': pump_id,
+            'is_pumping': pump.ispumping,
+            'fill_level': pump.fill_level,
+            'volume_unit': pump.volume_unit,
+            'name': pump.name}
+
+    return pump_status
 
 if __name__ == '__main__':
     app.run()
+

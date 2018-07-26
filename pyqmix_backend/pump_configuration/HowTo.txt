@@ -1,0 +1,6 @@
+
+How to: export pump configuration from one computer and import it on another
+
+1) QmixElements -> Device -> Export Configuration -> you now get a .qcf 
+
+2) QmixElements on the other computer -> import configuration :o) EASY ! 

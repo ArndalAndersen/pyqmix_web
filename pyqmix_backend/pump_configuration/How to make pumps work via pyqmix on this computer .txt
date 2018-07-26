@@ -1,0 +1,14 @@
+Based on meeting with Richard 25-07-2018:
+
+Fix to a problem I had connecting to the pumps:
+
+Parametre fra C:\Users\au278141\AppData\Local\QmixSDK\include\labbCAN_Bus_API.h 
+	Denne linie var blevet opdateret fra CETONI's side af:
+	long LCB_CALL LCB_Open(const char* pDeviceConfigPath, const char* PluginSearchPath
+
+skal skrives ind i: C:\Users\au278141\AppData\Local\Continuum\anaconda2\envs\pyqmix_web\Lib\site-packages\pyqmix\headers.py
+	Så denne linie:
+	long LCB_Open(const char* pDeviceConfigPath)
+ 	skal opdateres til: 
+	long LCB_Open(const char* pDeviceConfigPath, const char* PluginSearchPath);    
+
