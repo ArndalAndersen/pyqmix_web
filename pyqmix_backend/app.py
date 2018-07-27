@@ -8,11 +8,9 @@ import time
 app = Flask(__name__)
 api = Api(app)
 
-persistant_objects = {
+session_paramters = {
     'bus': None,
     'pumps': {},
-    'starting_pumps_timer': None,
-    'ispumping': None,
     'get_pumps_states_call_count': 0}
 
 ## --- Choose session type --- ##
@@ -42,14 +40,18 @@ initiate_pumps_request = api.model('Initiate pumps', {
 
 ## --- Endpoints --- ##
 
+@api.route('/api/')
+class Main(Resource):
+    pass
+
 @api.route('/api/pumps')
 class InitiatePumps(Resource):
 
     def get(self):
-        persistant_objects['get_pumps_states_call_count'] +=1
+        session_paramters['get_pumps_states_call_count'] +=1
         pump_states = []
-        for pump_id in persistant_objects['pumps']:
-            pump_state = get_pump_status(pump_id)
+        for pump_id in session_paramters['pumps']:
+            pump_state = get_pump_state(pump_id)
             pump_states.append(pump_state)
 
         return pump_states
@@ -66,7 +68,7 @@ class InitiatePumps(Resource):
         else:
             disconnect_pumps()
 
-        available_pumps = list(persistant_objects['pumps'].keys())
+        available_pumps = list(session_paramters['pumps'].keys())
 
         return available_pumps
 
@@ -75,7 +77,7 @@ class InitiatePumps(Resource):
 class Pumps(Resource):
     def get(self, pump_id):
 
-        pump_status = get_pump_status(pump_id)
+        pump_status = get_pump_state(pump_id)
 
         return pump_status
 
@@ -92,26 +94,6 @@ class Pumps(Resource):
 
         return 201
 
-@api.route('/api/ispumping')
-class IsPumping(Resource):
-
-    def get(self):
-        ispumping()
-        return persistant_objects['ispumping']
-
-@api.route('/api/')
-class Main(Resource):
-    def get(self):
-        # pump_list = detect_pumps()
-        # return render_template('', pumpList=pump_list)
-        response = {'foo': 1, 'bar': 2}
-        return response
-
-    def post(self):
-        response = {'foo': 1, 'bar': 2}
-        return response
-
-
 ## --- Functions --- ##
 
 def detect_and_find_availablePumps():
@@ -119,7 +101,7 @@ def detect_and_find_availablePumps():
     if app.config['test_session']:
         available_pumps = list(range(0, 5))
         pump_objects = list(range(0, 5))
-        persistant_objects['bus'] = 'I am a Qmix Bus.'
+        session_paramters['bus'] = 'I am a Qmix Bus.'
     else:
         # Initialize connection to the pump system.
         config_dir = op.normpath('C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/one_pump')
@@ -128,7 +110,7 @@ def detect_and_find_availablePumps():
         config.set_qmix_config_dir(config_dir)
         config.set_qmix_dll_dir(dll_dir)
 
-        persistant_objects['bus'] = QmixBus()
+        session_paramters['bus'] = QmixBus()
 
         nb_pumps = QmixPump(index=0).n_pumps
 
@@ -136,63 +118,45 @@ def detect_and_find_availablePumps():
         pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
 
     # Dict from zip
-    persistant_objects['pumps'] = dict(zip(available_pumps, pump_objects))
+    session_paramters['pumps'] = dict(zip(available_pumps, pump_objects))
 
 
 def disconnect_pumps():
 
     if not app.config['test_session']:
-        bus = persistant_objects['bus']
+        bus = session_paramters['bus']
         bus.close()
 
-    print(f'Bus before "closing": {persistant_objects["bus"]}')
-    persistant_objects['bus'] = None
-    print(f'Bus after "closing": {persistant_objects["bus"]}')
+    print(f'Bus before "closing": {session_paramters["bus"]}')
+    session_paramters['bus'] = None
+    print(f'Bus after "closing": {session_paramters["bus"]}')
 
-    persistant_objects['pumps'] = {}
+    session_paramters['pumps'] = {}
 
 def start_pumping(pump_id, target_volume, volume_unit, flow_rate, flow_unit):
 
     if app.config['test_session']:
-        persistant_objects['starting_pumps_timer'] = time.time()
         print(f'Starting virtual pump: {pump_id} and setting '
               f'target_volume to {target_volume} {volume_unit} '
               f'at {flow_rate} {flow_unit}')
     else:
-        persistant_objects['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
-
-def ispumping():
-
-    if app.config['test_session']:
-        time_when_pumps_started = persistant_objects['starting_pumps_timer']
-        time_now = time.time()
-        seconds_since_pump_initiation = time_now - time_when_pumps_started
-        if seconds_since_pump_initiation < 15:
-            persistant_objects['ispumping'] = True
-        else:
-            persistant_objects['ispumping'] = False
-
-    else:
-        ispumping_pumps = [pump.ispumping for pump_name, pump in persistant_objects['pumps'].items()]
-        if any(ispumping_pumps):
-            persistant_objects['ispumping'] = True
-        else:
-            persistant_objects['ispumping'] = False
+        session_paramters['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
 
 
+def get_pump_state(pump_id):
 
-def get_pump_status(pump_id):
-
-    pump = persistant_objects['pumps'][pump_id]
+    pump = session_paramters['pumps'][pump_id]
 
 
     if app.config['test_session']:
         pump_status = {
             'index': pump_id,
-            'isPumping': persistant_objects['get_pumps_states_call_count']%5 != 0,
+            'isPumping': session_paramters['get_pumps_states_call_count'] % 5 != 0,
             'fill_level': 20,
             'volume_unit': 'mL',
-            'name': 'Midpressure 3'}
+            'name': 'Midpressure 3',
+            'syringe_volume': 25,
+            'syringe_volume_unit': 'mL'}
 
     else:
         pump_status = {

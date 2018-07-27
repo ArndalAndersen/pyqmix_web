@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Button, ButtonGroup, FormGroup, Input, Label, Modal,
+import { Button, ButtonGroup, FormGroup, Input, Modal,
   ModalHeader, ModalBody, ModalFooter, Form} from 'reactstrap';
 import logo from './snake.svg';
 import './App.css';
@@ -16,14 +16,7 @@ class PumpForm extends Component {
     volumeUnit: "mL",
     flowRate: [],
     flowUnit: "mL/s",
-    fillLevel: [],
-    syringeSize: "",
-    syringeVolume: "",
-    isPumping: false,
-    currentFillLevel: "",  // Instead, use the pump-object
-    pumpNumber: "",
     modal: false,
-    isPumpDetected: false,
   };
 
   // Update state by input-fields
@@ -33,11 +26,27 @@ class PumpForm extends Component {
   handleFlowRateChange = (e) => this.setState({flowRate: e.target.value});
   handleFlowUnitChange = (e) => this.setState({flowUnit: e.target.value});
 
+
+  // Toggle to remove the modal
+  toggle = (e) => {this.setState({modal: !this.state.modal})};
+
+
+  // Update state.selectedPumps based on which pumps the user selected
+  handleSelectedPumpList = (selected) => {
+    const index = this.state.selectedPumps.indexOf(selected);
+    if (index < 0) {
+      this.state.selectedPumps.push(selected);
+    } else {
+      this.state.selectedPumps.splice(index, 1);
+    }
+    this.setState({ selectedPumps: [...this.state.selectedPumps] });
+  };
+
   // Detect pumps and return a list of them
   handleDetectPumps = (e) => {
     this.setState({connectedToPumps: !this.state.connectedToPumps},
       async () => {
-        let payload = {PumpInitiate: this.state.connectedToPumps };
+        let payload = {PumpInitiate: this.state.connectedToPumps};
         console.log(payload); //example from html script, not sure whether it would work here
         const response = await fetch('/api/pumps', {
           method: 'put',
@@ -53,44 +62,14 @@ class PumpForm extends Component {
 
         // Unselect pumps if they are disconnected, and get all pumps' state if connected
         if (this.state.connectedToPumps === false) {
-          this.setState({selectedPumps: []})
+            this.setState({selectedPumps: []})
         } else {
           this.getPumpStates();
         }
-
-        // old method instead of the await method
-        // response
-        //   .then(r => {return r.json()})
-        //   .then(json => this.setState({detectedPumps: json}));
       }
     );
   };
 
-// Update state on which pumps the user selected
-  handleSelectedPumpList = (selected) => {
-    const index = this.state.selectedPumps.indexOf(selected);
-    if (index < 0) {
-      this.state.selectedPumps.push(selected);
-    } else {
-      this.state.selectedPumps.splice(index, 1);
-    }
-    this.setState({ selectedPumps: [...this.state.selectedPumps] });
-  };
-
-// Toggle to remove the modal
-  toggle = (e) => {
-    this.setState({modal: !this.state.modal})
-  };
-
-  waitForPumps = async () => {
-     do {
-        console.log('getting states');
-        this.getPumpStates();
-        console.log('taking a break');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        console.log('back again!');
-      } while (this.state.pumps.some(x => x.isPumping));
-  };
 
 // Refill pumps
   handleRefill = async (e) => {
@@ -108,7 +87,7 @@ class PumpForm extends Component {
         'flowUnit': this.state.flowUnit
       });
 
-      await this.waitForPumps();
+      await this.waitForPumpingToFinish();
 
       // End by refilling
       this.sendCommmandToPumps({
@@ -118,41 +97,23 @@ class PumpForm extends Component {
         'flowUnit': this.state.flowUnit
       });
 
-      await this.waitForPumps();
+      await this.waitForPumpingToFinish();
 
     }
   };
 
-
-
-  isStillPumping = (e) => {
-    const response = fetch('/api/ispumping', {
-      method: 'get',
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'Content-Type': 'application/json'
-      },
-    });
-
-    response
-      .then(r => {return r.json()})
-      .then(json => console.log(json))
-
-  };
 
   sendCommmandToPumps = (payload) => {
 
     let pumpIndex;
     let pumpName;
 
-    this.setState({isPumping: true});
-
     for (pumpIndex = 0; pumpIndex < this.state.selectedPumps.length; pumpIndex++) {
 
       pumpName = this.state.selectedPumps[pumpIndex];
 
       // Send information to pump-specific endpoint
-      const promise = fetch('/api/pumps/'+pumpName.toString(), {
+      fetch('/api/pumps/'+pumpName.toString(), {
         method: 'put',
         headers: {
           'Accept': 'application/json, text/plain, */*',
@@ -164,18 +125,16 @@ class PumpForm extends Component {
   };
 
 
-  getPumpState = async (pumpName) => {
-    const response = await fetch('/api/pumps/' + pumpName.toString(), {
-      method: 'get',
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'Content-Type': 'application/json'
-      },
-    });
-
-    const json = await response.json();
-    return json;
+  waitForPumpingToFinish = async () => {
+     do {
+        console.log('getting states');
+        this.getPumpStates();
+        console.log('taking a break');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        console.log('back again!');
+      } while (this.state.pumps.some(x => x.isPumping));
   };
+
 
   getPumpStates = async (e) => {
 
@@ -192,6 +151,21 @@ class PumpForm extends Component {
     this.setState({pumps: json})
 
   };
+
+  //  This function is currently not used
+  getPumpState = async (pumpName) => {
+    const response = await fetch('/api/pumps/' + pumpName.toString(), {
+      method: 'get',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json'
+      },
+    });
+
+    const json = await response.json();
+    return json;
+  };
+
 
   render = () => {
     return (
