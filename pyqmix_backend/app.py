@@ -3,14 +3,13 @@ from flask_restplus import Api, Resource
 from flask_restplus.fields import Float, Boolean, String, Nested
 from pyqmix import QmixBus, config, QmixPump
 import os.path as op
-import time
 
 app = Flask(__name__)
 api = Api(app)
 
 session_paramters = {
     'bus': None,
-    'pumps': {},
+    'pumps': {}, #  Dictionary of pump objects
     'get_pumps_states_call_count': 0}
 
 ## --- Choose session type --- ##
@@ -66,11 +65,10 @@ class InitiatePumps(Resource):
     @api.expect(initiate_pumps_request)
     def put(self):  # Post: client posts info
         payload = request.json
-        initiate_pumps = payload['PumpInitiate']
+        initiate_pumps = payload['pumpInitiate']
         print(payload)  # Goes to python console
 
         if initiate_pumps:
-            # How do I update the local variable with this value?
             detect_and_find_availablePumps()
         else:
             disconnect_pumps()
@@ -114,24 +112,24 @@ def detect_and_find_availablePumps():
         available_pumps = list(range(0, 5))
         pump_objects = list(range(0, 5))
         session_paramters['bus'] = 'I am a Qmix Bus.'
-    else:
-        # Initialize connection to the pump system.
-        config_dir = op.normpath('C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/one_pump')
-        dll_dir = op.normpath('C:/Users/au278141/AppData/Local/QmixSDK')
-
-        config.set_qmix_config_dir(config_dir)
-        config.set_qmix_dll_dir(dll_dir)
-
-        session_paramters['bus'] = QmixBus()
-
-        nb_pumps = QmixPump(index=0).n_pumps
-
-        available_pumps = [str(i) for i in range(0,nb_pumps)]
-        pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
+    # else:
+        # # if not config.read_config()['qmix_dll_dir'] or not config.read_config()['qmix_config_dir']:
+        #
+        #     # Initialize connection to the pump system.
+        #     config_dir = op.normpath(
+        #         'C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/one_pump')
+        #     dll_dir = op.normpath('C:/Users/au278141/AppData/Local/QmixSDK')
+        #
+        #     config.set_qmix_config_dir(config_dir)
+        #     config.set_qmix_dll_dir(dll_dir)
+        # # else:
+        #     session_paramters['bus'] = QmixBus()
+        #     nb_pumps = QmixPump(index=0).n_pumps
+        #     available_pumps = [str(i) for i in range(0,nb_pumps)]
+        #     pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
 
     # Dict from zip
     session_paramters['pumps'] = dict(zip(available_pumps, pump_objects))
-
 
 def disconnect_pumps():
 
@@ -148,7 +146,6 @@ def disconnect_pumps():
 def get_pump_state(pump_id):
 
     pump = session_paramters['pumps'][pump_id]
-
 
     if app.config['test_session']:
         pump_status = {

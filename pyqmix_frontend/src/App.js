@@ -9,7 +9,7 @@ class PumpForm extends Component {
   state = {
     connectedToPumps: false,  // Are the pumps connected?
     detectedPumps: [],  // Pumps detected in system
-    selectedPumps: [],  // Pumps selected by user
+    selectedPumps: [],  // Pumps selected by user. Index of pumps in state.pumps.
     pumps: [],
     nbRep: 0,
     targetVolume: [],
@@ -17,6 +17,7 @@ class PumpForm extends Component {
     flowRate: [],
     flowUnit: "mL/s",
     modal: false,
+    modal_specific: {'refe': false, },
     minSyringeSize: ""
   };
 
@@ -31,6 +32,15 @@ class PumpForm extends Component {
   // Toggle to remove the modal
   toggle = (e) => {this.setState({modal: !this.state.modal})};
 
+  toggle_specific = (modalType) => {
+
+    let modals;
+    modals = this.state.modal_specific;
+    modals[modalType] = !modals[modalType];
+    this.setState({modal_specific: modals})
+
+  };
+
 
   // Update state.selectedPumps based on which pumps the user selected
   handleSelectedPumpList = (selected) => {
@@ -40,14 +50,15 @@ class PumpForm extends Component {
     } else {
       this.state.selectedPumps.splice(index, 1);
     }
-    this.setState({ selectedPumps: [...this.state.selectedPumps] });
+    this.setState({ selectedPumps: [...this.state.selectedPumps] }, this.minimum_syringe_volume);
+
   };
 
   // Detect pumps and return a list of them
   handleDetectPumps = (e) => {
     this.setState({connectedToPumps: !this.state.connectedToPumps},
       async () => {
-        let payload = {PumpInitiate: this.state.connectedToPumps};
+        let payload = {pumpInitiate: this.state.connectedToPumps};
         console.log(payload); //example from html script, not sure whether it would work here
         const response = await fetch('/api/pumps', {
           method: 'put',
@@ -58,8 +69,11 @@ class PumpForm extends Component {
           body: JSON.stringify(payload)
         });
 
+        // Browse for config file and dll-folder if it was not already found
         const json = await response.json();
-        this.setState({detectedPumps: json});
+        if (response.ok) {
+          this.setState({detectedPumps: json});
+        }
 
         // Unselect pumps if they are disconnected, and get all pumps' state if connected
         if (this.state.connectedToPumps === false) {
@@ -69,26 +83,23 @@ class PumpForm extends Component {
         }
       }
     );
-    this.minimum_syringe_volume()
   };
 
 
   // Reference move
-  handleReferenceMove = async (e) => {
-    this.toggle(); // To remove the modal
+  handleReferenceMove = (e) => {
+    this.toggle_specific('referenceMove'); // To remove the modal
 
     this.sendCommmandToPumps('referenceMove');
-    await this.waitForPumpingToFinish();
 
   };
 
   // Refill pumps
-  handleFill = async (e) => {
+  handleFill = (e) => {
     this.toggle(); // To remove the modal
 
     // Set pumps to fill level
     this.sendCommmandToPumps('fillToLevel');
-    await this.waitForPumpingToFinish();
 
     // Iterate over repetitions
     let repIndex;
@@ -96,42 +107,36 @@ class PumpForm extends Component {
 
       // Empty syringes
       this.sendCommmandToPumps('empty');
-      await this.waitForPumpingToFinish();
 
       // Set pumps to fill level
       this.sendCommmandToPumps('fillToLevel');
-      await this.waitForPumpingToFinish();
 
     }
   };
 
 
   // Bubble cycle
-  handleBubbleCycle = async (e) => {
+  handleBubbleCycle = (e) => {
     this.toggle(); // To remove the modal
 
     // Fill in air
     this.sendCommmandToPumps('fillToLevel');
-    await this.waitForPumpingToFinish();
 
     // Empty syringes
     this.sendCommmandToPumps('empty');
-    await this.waitForPumpingToFinish();
 
     // Fill in stimulus
     this.sendCommmandToPumps('fillToLevel');
-    await this.waitForPumpingToFinish();
 
   };
 
 
   // Rinse syringes
-  handleRinse = async (e) => {
+  handleRinse = (e) => {
     this.toggle(); // To remove the modal
 
     // Empty syringes
     this.sendCommmandToPumps('empty');
-    await this.waitForPumpingToFinish();
 
     // Iterate over repetitions
     let repIndex;
@@ -139,23 +144,20 @@ class PumpForm extends Component {
 
       // Fill syringes
       this.sendCommmandToPumps('fill');
-      await this.waitForPumpingToFinish();
 
       // Empty syringes
       this.sendCommmandToPumps('empty');
-      await this.waitForPumpingToFinish();
 
     }
   };
 
 
   // Empty syringes
-  handleEmpty = async (e) => {
+  handleEmpty = (e) => {
     this.toggle(); // To remove the modal
 
     // Empty syringes
     this.sendCommmandToPumps('empty');
-    await this.waitForPumpingToFinish();
 
     // Iterate over repetitions
     let repIndex;
@@ -163,22 +165,20 @@ class PumpForm extends Component {
 
       // Set pumps to fill level
       this.sendCommmandToPumps('fill');
-      await this.waitForPumpingToFinish();
 
       // Empty syringes
       this.sendCommmandToPumps('empty');
-      await this.waitForPumpingToFinish();
 
     }
   };
 
 
-
   // Send pump command to backend
-  sendCommmandToPumps = (action) => {
+  sendCommmandToPumps = async (action) => {
+
+    await this.waitForPumpingToFinish();
 
     let payload;
-
     for (let pumpName in this.state.selectedPumps) {
 
       payload = this.makePumpCommand(action, pumpName);
@@ -254,6 +254,7 @@ class PumpForm extends Component {
 
   };
 
+
 //  This function is currently not used
   getPumpState = async (pumpName) => {
     const response = await fetch('/api/pumps/' + pumpName.toString(), {
@@ -271,8 +272,10 @@ class PumpForm extends Component {
   // Change so function is only used when it has
   minimum_syringe_volume = () => {
 
-    if (this.state.pumps.length > 0) {
-      let minSyringeSize = this.state.pumps.sort((x, y) => x.syringe_volume - y.syringe_volume).pop();
+    if (this.state.selectedPumps.length > 0) {
+      let selectedPumps = this.state.pumps.filter( (e) => this.state.selectedPumps.includes(e.index) );
+      let pumpWithMinSyringeSize = selectedPumps.sort((x, y) => y.syringe_volume - x.syringe_volume).pop();
+      let minSyringeSize = pumpWithMinSyringeSize.syringe_volume;
       console.log(minSyringeSize);
       this.setState({minSyringeSize: minSyringeSize.toString()})
     } else {this.setState({minSyringeSize: "300"})}
@@ -289,7 +292,7 @@ class PumpForm extends Component {
           <Button
             color={this.state.connectedToPumps ? "success" : "success"}
             onClick={this.handleDetectPumps}>
-            {this.state.connectedToPumps ? "Press to disconnect pumps" : "Detect pumps"}
+            {this.state.connectedToPumps ? "Disconnect pumps" : "Detect pumps"}
           </Button>
         </div>
 
@@ -310,11 +313,10 @@ class PumpForm extends Component {
         <div className="entire-input-form">
 
           {/*REFERENCE MOVE*/}
-
           <Form method="post"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  this.toggle();
+                  this.toggle_specific('referenceMove');
                 }}>
 
             <FormGroup className="input-form">
@@ -324,14 +326,14 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Reference Move </Button>
-                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                    <ModalHeader toggle={this.toogle}>Reference Move</ModalHeader>
+                  <Modal isOpen={this.state.modal_specific['referenceMove']} toggle={function() { return this.toggle_specific('referenceMove');} } className={this.props.className}>
+                    <ModalHeader toggle={() => this.toggle_specific('referenceMove')}>Reference Move</ModalHeader>
                     <ModalBody>
                       Detach all syringes from the pumps before continuing.
                     </ModalBody>
                     <ModalFooter>
                       <Button color="success" onClick={this.handleReferenceMove}> Continue </Button>
-                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                      <Button color="danger" onClick={() => this.toggle_specific('referenceMove')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
                 </div>
@@ -386,6 +388,7 @@ class PumpForm extends Component {
                   <Input type="number"
                          name="targetVolume"
                          min="0"
+                         max={this.state.minSyringeSize}
                          placeholder="Target volume."
                          onChange={this.handleTargetVolumeChange}
                          required/>
