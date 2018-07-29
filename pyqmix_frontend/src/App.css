@@ -46,25 +46,45 @@ body {
 }
 
 .button-group {
-  padding: 10px 0px 10px 0px;
-
+  padding: 10px 0 10px 0;
 }
 
-.refill-subform {
-  display: inline-block;
-  padding: 0px 0px 0px 0px;
-  margin: 5px 5px 5px 0;
-  vertical-align: top;
+.entire-input-form {
+    padding: 15px 10px 10px 10px;
+    /*display: table;*/
 }
 
-.refill-form {
+.input-form {
+  /*display: table-row;*/
   border: 2px solid black;
-  padding: 0px 0px 0px 0px;
-  margin: 10px 5px 5px 0;
+  padding: 2px 2px 2px 2px;
+  /*margin: 10px 5px 5px 0;*/
 }
 
-.flowrate-subform {
-    display: inline-block;
-    margin: 0px 0px 0px 0px;
-    align-content: center;
+.input-subform {
+  /*display: inline-block;*/
+  padding: 5px 5px 5px 5px;
+  /*margin: 5px 5px 5px 5px;*/
+  /*vertical-align: top;*/
 }
+
+.button-subform {
+    text-align: right;
+    /*display: table-column;*/
+    padding: 5px 5px 5px 0;
+    /*margin: 0 0 0 10px;*/
+}
+
+/*.nrep-subform {*/
+    /*!*display: table-column;*!*/
+/*}*/
+
+/*.flowrate-subform {*/
+    /*!*margin: 0 0 0 0;*!*/
+
+    /*!*display: table-column;*!*/
+/*}*/
+
+/*.volume-subform {*/
+    /*!*display: table-column;*!*/
+/*}*/

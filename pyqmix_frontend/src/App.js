@@ -282,6 +282,7 @@ class PumpForm extends Component {
 
   render = () => {
     return (
+
       <div className="pump-form">
 
         <div className="button-group">
@@ -306,301 +307,325 @@ class PumpForm extends Component {
           {/*<p>Selected: {JSON.stringify(thƒis.state.selectedPumps)}</p>*/}
         </div>
 
+        <div className="entire-input-form">
 
-        {/*REFERENCE MOVE*/}
-        <Form method="post"
-              onSubmit={(e) => {
-                e.preventDefault();
-                this.toggle();
-              }}>
+          {/*REFERENCE MOVE*/}
 
-          <FormGroup className="refill-form">
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle();
+                }}>
 
-            <div className="refill-subform">
-              <Button color="success"
-                      disabled={this.state.selectedPumps.length === 0}
-              > Reference Move </Button>
-              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                <ModalHeader toggle={this.toogle}>Reference Move</ModalHeader>
-                <ModalBody>
-                  Detach all syringes from the pumps before continuing.
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="success" onClick={this.handleReferenceMove}> Continue </Button>
-                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                </ModalFooter>
-              </Modal>
-            </div>
+            <FormGroup className="input-form">
 
-          </FormGroup>
-        </Form>
-
-
-        {/*REFILL FORM*/}
-        <Form method="post"
-              onSubmit={(e) => {
-                e.preventDefault();
-                this.toggle();
-              }}>
-
-          <FormGroup className="refill-form">
-
-
-            <div className="refill-subform">
-              <Button color="success"
-                      disabled={this.state.selectedPumps.length === 0}
-              > Refill </Button>
-              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
-                <ModalBody>
-                  Have you remembered to:
-                  1) remove the spray head from the outlet?
-                  2) insert the inlet tube into the stimulus?
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="success" onClick={this.handleFill}> Continue </Button>
-                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                </ModalFooter>
-              </Modal>
-            </div>
-            <div className="refill-subform">
-              <Input type="number"
-                     name="nbRepetitions"
-                     min="1"
-                     placeholder="No. of repetitions."
-                     onChange={this.handleRepetitionsChange}
-                     required/>
-            </div>
-
-            <div className="refill-subform">
-
-              <Input type="number"
-                     name="targetVolume"
-                     min="0"
-                     placeholder="Target volume."
-                     onChange={this.handleTargetVolumeChange}
-                     required/>
-              <Input type="select"
-                     name="flowUnit"
-                     onChange={this.handleVolumeUnitChange}>
-                {/*<option value={this.state.volumeUnit}>HEJ</option>*/}
-                {/*<option value={this.state.volumeUnit}>{this.state.volumeUnit.toString()}</option>*/}
-                <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
-                <option value="cL_form">cL</option>
-              </Input>
-            </div>
-
-
-            <div className="refill-subform">
-              <div className="flowrate-subform">
-                <Input type="number"
-                       name="flowRate"
-                       min="0"
-                       placeholder="Flow rate."
-                       onChange={this.handleFlowRateChange}
-                       required/>
-                <Input type="select"
-                       name="flowUnit"
-                       onChange={this.handleFlowUnitChange}>
-                  <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
-                  <option value="mL/min">mL/min</option>
-                  <option value="cL/s">cL/s</option>
-                  <option value="cL/min">cL/min</option>
-                </Input>
+              <div className="row">
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Reference Move </Button>
+                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                    <ModalHeader toggle={this.toogle}>Reference Move</ModalHeader>
+                    <ModalBody>
+                      Detach all syringes from the pumps before continuing.
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleReferenceMove}> Continue </Button>
+                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
+                <div className="col-sm-3"></div>
+                <div className="col-sm-3"></div>
+                <div className="col-sm-3"></div>
               </div>
-            </div>
-
-          </FormGroup>
-        </Form>
+            </FormGroup>
+          </Form>
 
 
-        {/*BUBBLE CYCLE FORM*/}
-        <Form method="post"
-              onSubmit={(e) => {
-                e.preventDefault();
-                this.toggle();
-              }}>
+          {/*FILL FORM*/}
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle();
+                }}>
 
-          <FormGroup className="refill-form">
+            <FormGroup className="input-form">
+              <div className="row">
 
-            <div className="refill-subform">
-              <Button color="success"
-                      disabled={this.state.selectedPumps.length === 0}
-              > Bubble Cycle </Button>
-              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
-                <ModalBody>
-                  Have you remembered to:
-                  1) remove the spray head from the outlet?
-                  2) insert the inlet tube into the stimulus?
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="success" onClick={this.handleBubbleCycle}> Continue </Button>
-                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                </ModalFooter>
-              </Modal>
-            </div>
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Fill </Button>
+                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                    <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
+                    <ModalBody>
+                      Have you remembered to:
+                      1) remove the spray head from the outlet?
+                      2) insert the inlet tube into the stimulus?
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleFill}> Continue </Button>
+                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
 
 
-            <div className="refill-subform">
-              <Input type="number"
-                     name="targetVolume"
-                     min="0"
-                     placeholder="Target volume."
-                     onChange={this.handleTargetVolumeChange}
-                     required/>
-              <Input type="select"
-                     name="flowUnit"
-                     onChange={this.handleVolumeUnitChange}>
-                {/*<option value={this.state.volumeUnit}>HEJ</option>*/}
-                {/*<option value={this.state.volumeUnit}>{this.state.volumeUnit.toString()}</option>*/}
-                <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
-                <option value="cL_form">cL</option>
-              </Input>
-            </div>
+                <div className="col-sm-3 input-subform nrep-subform">
+                  <Input type="number"
+                         name="nbRepetitions"
+                         min="1"
+                         placeholder="No. of repetitions."
+                         onChange={this.handleRepetitionsChange}
+                         required/>
+                </div>
 
-            <div className="refill-subform">
-              <div className="flowrate-subform">
-                <Input type="number"
-                       name="flowRate"
-                       min="0"
-                       placeholder="Flow rate."
-                       onChange={this.handleFlowRateChange}
-                       required/>
-                <Input type="select"
-                       name="flowUnit"
-                       onChange={this.handleFlowUnitChange}>
-                  <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
-                  <option value="mL/min">mL/min</option>
-                  <option value="cL/s">cL/s</option>
-                  <option value="cL/min">cL/min</option>
-                </Input>
+
+                <div className="col-sm-3 input-subform volume-subform">
+                  <Input type="number"
+                         name="targetVolume"
+                         min="0"
+                         placeholder="Target volume."
+                         onChange={this.handleTargetVolumeChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleVolumeUnitChange}>
+                    <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
+                    <option value="cL_form">cL</option>
+                  </Input>
+                </div>
+
+
+                <div className="col-sm-3 input-subform flowrate-subform">
+                  <Input type="number"
+                         name="flowRate"
+                         min="0"
+                         placeholder="Flow rate."
+                         onChange={this.handleFlowRateChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleFlowUnitChange}>
+                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                    <option value="mL/min">mL/min</option>
+                    <option value="cL/s">cL/s</option>
+                    <option value="cL/min">cL/min</option>
+                  </Input>
+                </div>
               </div>
-            </div>
+            </FormGroup>
 
-          </FormGroup>
-        </Form>
+          </Form>
 
 
-        {/*RINSE FORM*/}
-        <Form method="post"
-              onSubmit={(e) => {
-                e.preventDefault();
-                this.toggle();
-              }}>
+          {/*BUBBLE CYCLE FORM*/}
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle();
+                }}>
 
-          <FormGroup className="refill-form">
+            <FormGroup className="input-form">
+              <div className="row">
 
-            <div className="refill-subform">
-              <Button color="success"
-                      disabled={this.state.selectedPumps.length === 0}
-              > Rinse </Button>
-              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                <ModalHeader toggle={this.toogle}>Rinse</ModalHeader>
-                <ModalBody>
-                  Have you remembered to:
-                  1) remove the spray head from the outlet?
-                  2) insert the inlet tube into the stimulus?
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="success" onClick={this.handleRinse}> Continue </Button>
-                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                </ModalFooter>
-              </Modal>
-            </div>
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Bubble Cycle </Button>
+                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                    <ModalHeader toggle={this.toogle}>Bubble Cycle</ModalHeader>
+                    <ModalBody>
+                      Have you remembered to:
+                      1) remove the spray head from the outlet?
+                      2) insert the inlet tube into the stimulus?
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleBubbleCycle}> Continue </Button>
+                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
 
-            <div className="refill-subform">
-              <Input type="number"
-                     name="nbRepetitions"
-                     min="1"
-                     placeholder="No. of repetitions."
-                     onChange={this.handleRepetitionsChange}
-                     required/>
-            </div>
 
-            <div className="refill-subform">
-              <Input type="number"
-                     name="flowRate"
-                     min="0"
-                     placeholder="Flow rate."
-                     onChange={this.handleFlowRateChange}
-                     required/>
-              <Input type="select"
-                     name="flowUnit"
-                     onChange={this.handleFlowUnitChange}>
-                <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
-                <option value="mL/min">mL/min</option>
-                <option value="cL/s">cL/s</option>
-                <option value="cL/min">cL/min</option>
-              </Input>
-            </div>
+                <div className="col-sm-3 input-subform nrep-subform"></div>
 
-          </FormGroup>
-        </Form>
 
-        {/*EMPTY FORM*/}
-        <Form method="post"
-              onSubmit={(e) => {
-                e.preventDefault();
-                this.toggle();
-              }}>
+                <div className="col-sm-3 input-subform volume-subform">
+                  <Input type="number"
+                         name="targetVolume"
+                         min="0"
+                         placeholder="Target volume."
+                         onChange={this.handleTargetVolumeChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleVolumeUnitChange}>
+                    <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
+                    <option value="cL_form">cL</option>
+                  </Input>
+                </div>
 
-          <FormGroup className="refill-form">
 
-            <div className="refill-subform">
-              <Button color="success"
-                      disabled={this.state.selectedPumps.length === 0}
-              > Empty </Button>
-              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                <ModalHeader toggle={this.toogle}>Empty</ModalHeader>
-                <ModalBody>
-                  Have you remembered to:
-                  1) remove the spray head from the outlet?
-                  2) insert the inlet tube into the stimulus?
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="success" onClick={this.handleEmpty}> Continue </Button>
-                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                </ModalFooter>
-              </Modal>
-            </div>
+                <div className="col-sm-3 input-subform flowrate-subform">
+                  <Input type="number"
+                         name="flowRate"
+                         min="0"
+                         placeholder="Flow rate."
+                         onChange={this.handleFlowRateChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleFlowUnitChange}>
+                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                    <option value="mL/min">mL/min</option>
+                    <option value="cL/s">cL/s</option>
+                    <option value="cL/min">cL/min</option>
+                  </Input>
+                </div>
+              </div>
+            </FormGroup>
 
-            <div className="refill-subform">
-              <Input type="number"
-                     name="nbRepetitions"
-                     min="1"
-                     placeholder="No. of repetitions."
-                     onChange={this.handleRepetitionsChange}
-                     required/>
-            </div>
+          </Form>
 
-            <div className="refill-subform">
-              <Input type="number"
-                     name="flowRate"
-                     min="0"
-                     placeholder="Flow rate."
-                     onChange={this.handleFlowRateChange}
-                     required/>
-              <Input type="select"
-                     name="flowUnit"
-                     onChange={this.handleFlowUnitChange}>
-                <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
-                <option value="mL/min">mL/min</option>
-                <option value="cL/s">cL/s</option>
-                <option value="cL/min">cL/min</option>
-              </Input>
-            </div>
 
-          </FormGroup>
-        </Form>
 
+          {/*RINSE FORM*/}
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle();
+                }}>
+
+            <FormGroup className="input-form">
+              <div className="row">
+
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Rinse </Button>
+                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                    <ModalHeader toggle={this.toogle}>Rinse</ModalHeader>
+                    <ModalBody>
+                      Have you remembered to:
+                      1) remove the spray head from the outlet?
+                      2) insert the inlet tube into the stimulus?
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleRinse}> Continue </Button>
+                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
+
+
+                <div className="col-sm-3 input-subform nrep-subform">
+                  <Input type="number"
+                         name="nbRepetitions"
+                         min="1"
+                         placeholder="No. of repetitions."
+                         onChange={this.handleRepetitionsChange}
+                         required/>
+                </div>
+
+
+                <div className="col-sm-3 input-subform volume-subform"></div>
+
+
+                <div className="col-sm-3 input-subform flowrate-subform">
+                  <Input type="number"
+                         name="flowRate"
+                         min="0"
+                         placeholder="Flow rate."
+                         onChange={this.handleFlowRateChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleFlowUnitChange}>
+                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                    <option value="mL/min">mL/min</option>
+                    <option value="cL/s">cL/s</option>
+                    <option value="cL/min">cL/min</option>
+                  </Input>
+                </div>
+              </div>
+            </FormGroup>
+
+          </Form>
+
+
+          {/*EMPTY FORM*/}
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle();
+                }}>
+
+            <FormGroup className="input-form">
+              <div className="row">
+
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Empty </Button>
+                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                    <ModalHeader toggle={this.toogle}>Empty</ModalHeader>
+                    <ModalBody>
+                      Have you remembered to:
+                      1) remove the spray head from the outlet?
+                      2) insert the inlet tube into the stimulus?
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleEmpty}> Continue </Button>
+                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
+
+
+                <div className="col-sm-3 input-subform nrep-subform">
+                  <Input type="number"
+                         name="nbRepetitions"
+                         min="1"
+                         placeholder="No. of repetitions."
+                         onChange={this.handleRepetitionsChange}
+                         required/>
+                </div>
+
+
+                <div className="col-sm-3 input-subform volume-subform"></div>
+
+
+                <div className="col-sm-3 input-subform flowrate-subform">
+                  <Input type="number"
+                         name="flowRate"
+                         min="0"
+                         placeholder="Flow rate."
+                         onChange={this.handleFlowRateChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleFlowUnitChange}>
+                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                    <option value="mL/min">mL/min</option>
+                    <option value="cL/s">cL/s</option>
+                    <option value="cL/min">cL/min</option>
+                  </Input>
+                </div>
+              </div>
+            </FormGroup>
+
+          </Form>
+
+        </div>
 
       </div>
     )
   }
 }
 
-// Here I put the stuff on the webpage
+
 class App extends Component {
   render() {
     return (
