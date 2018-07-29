@@ -17,6 +17,7 @@ class PumpForm extends Component {
     flowRate: [],
     flowUnit: "mL/s",
     modal: false,
+    minSyringeSize: ""
   };
 
   // Update state by input-fields
@@ -62,55 +63,125 @@ class PumpForm extends Component {
 
         // Unselect pumps if they are disconnected, and get all pumps' state if connected
         if (this.state.connectedToPumps === false) {
-            this.setState({selectedPumps: []})
+          this.setState({selectedPumps: []})
         } else {
           this.getPumpStates();
         }
       }
     );
+    this.minimum_syringe_volume()
   };
 
 
-// Refill pumps
-  handleRefill = async (e) => {
+  // Reference move
+  handleReferenceMove = async (e) => {
     this.toggle(); // To remove the modal
+
+    this.sendCommmandToPumps('referenceMove');
+    await this.waitForPumpingToFinish();
+
+  };
+
+  // Refill pumps
+  handleFill = async (e) => {
+    this.toggle(); // To remove the modal
+
+    // Set pumps to fill level
+    this.sendCommmandToPumps('fillToLevel');
+    await this.waitForPumpingToFinish();
 
     // Iterate over repetitions
     let repIndex;
-    for (repIndex = 0; repIndex < this.state.nbRep; repIndex++ ) {
+    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
 
-      // Start by emptying
-      this.sendCommmandToPumps({
-        'targetVolume': this.state.targetVolume,
-        'volumeUnit': this.state.volumeUnit,
-        'flowRate': this.state.flowRate,
-        'flowUnit': this.state.flowUnit
-      });
-
+      // Empty syringes
+      this.sendCommmandToPumps('empty');
       await this.waitForPumpingToFinish();
 
-      // End by refilling
-      this.sendCommmandToPumps({
-        'targetVolume': this.state.targetVolume,
-        'volumeUnit': this.state.volumeUnit,
-        'flowRate': this.state.flowRate,
-        'flowUnit': this.state.flowUnit
-      });
-
+      // Set pumps to fill level
+      this.sendCommmandToPumps('fillToLevel');
       await this.waitForPumpingToFinish();
 
     }
   };
 
 
-  sendCommmandToPumps = (payload) => {
+  // Bubble cycle
+  handleBubbleCycle = async (e) => {
+    this.toggle(); // To remove the modal
 
-    let pumpIndex;
-    let pumpName;
+    // Fill in air
+    this.sendCommmandToPumps('fillToLevel');
+    await this.waitForPumpingToFinish();
 
-    for (pumpIndex = 0; pumpIndex < this.state.selectedPumps.length; pumpIndex++) {
+    // Empty syringes
+    this.sendCommmandToPumps('empty');
+    await this.waitForPumpingToFinish();
 
-      pumpName = this.state.selectedPumps[pumpIndex];
+    // Fill in stimulus
+    this.sendCommmandToPumps('fillToLevel');
+    await this.waitForPumpingToFinish();
+
+  };
+
+
+  // Rinse syringes
+  handleRinse = async (e) => {
+    this.toggle(); // To remove the modal
+
+    // Empty syringes
+    this.sendCommmandToPumps('empty');
+    await this.waitForPumpingToFinish();
+
+    // Iterate over repetitions
+    let repIndex;
+    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
+
+      // Fill syringes
+      this.sendCommmandToPumps('fill');
+      await this.waitForPumpingToFinish();
+
+      // Empty syringes
+      this.sendCommmandToPumps('empty');
+      await this.waitForPumpingToFinish();
+
+    }
+  };
+
+
+  // Empty syringes
+  handleEmpty = async (e) => {
+    this.toggle(); // To remove the modal
+
+    // Empty syringes
+    this.sendCommmandToPumps('empty');
+    await this.waitForPumpingToFinish();
+
+    // Iterate over repetitions
+    let repIndex;
+    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
+
+      // Set pumps to fill level
+      this.sendCommmandToPumps('fill');
+      await this.waitForPumpingToFinish();
+
+      // Empty syringes
+      this.sendCommmandToPumps('empty');
+      await this.waitForPumpingToFinish();
+
+    }
+  };
+
+
+
+  // Send pump command to backend
+  sendCommmandToPumps = (action) => {
+
+    let payload;
+
+    for (let pumpName in this.state.selectedPumps) {
+
+      payload = this.makePumpCommand(action, pumpName);
 
       // Send information to pump-specific endpoint
       fetch('/api/pumps/'+pumpName.toString(), {
@@ -124,15 +195,46 @@ class PumpForm extends Component {
     }
   };
 
+  // Translate action to pump commands
+  makePumpCommand = (action, PumpName) => {
+
+    let pumpCommand;
+    let targetVolume;
+
+    if (action === 'referenceMove') {
+      pumpCommand = {action: action};
+    } else if (action === 'fillToLevel' || action === 'fill' || action === 'empty') {
+
+      // If the command is fillToLevel, empty, or fill
+      if (action === 'fillToLevel') {
+        targetVolume = this.state.targetVolume;
+      } else if (action === 'empty') {
+        targetVolume = 0;
+      } else if (action === 'fill') {
+        targetVolume = this.state.pumps[PumpName].syringe_volume
+      }
+
+      pumpCommand = {
+        'action': action,
+        'params': {
+          'targetVolume': targetVolume,
+          'volumeUnit': this.state.volumeUnit,
+          'flowRate': this.state.flowRate,
+          'flowUnit': this.state.flowUnit
+        }
+      };
+    } else {console.log({})}
+    return pumpCommand
+  };
+
+
 
   waitForPumpingToFinish = async () => {
-     do {
-        console.log('getting states');
-        this.getPumpStates();
-        console.log('taking a break');
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        console.log('back again!');
-      } while (this.state.pumps.some(x => x.isPumping));
+    do {
+      console.log('Checking whether pumps are still pumping');
+      this.getPumpStates();
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    } while (this.state.pumps.some(x => x.isPumping));
   };
 
 
@@ -152,7 +254,7 @@ class PumpForm extends Component {
 
   };
 
-  //  This function is currently not used
+//  This function is currently not used
   getPumpState = async (pumpName) => {
     const response = await fetch('/api/pumps/' + pumpName.toString(), {
       method: 'get',
@@ -164,6 +266,17 @@ class PumpForm extends Component {
 
     const json = await response.json();
     return json;
+  };
+
+  // Change so function is only used when it has
+  minimum_syringe_volume = () => {
+
+    if (this.state.pumps.length > 0) {
+      let minSyringeSize = this.state.pumps.sort((x, y) => x.syringe_volume - y.syringe_volume).pop();
+      console.log(minSyringeSize);
+      this.setState({minSyringeSize: minSyringeSize.toString()})
+    } else {this.setState({minSyringeSize: "300"})}
+
   };
 
 
@@ -193,6 +306,8 @@ class PumpForm extends Component {
           {/*<p>Selected: {JSON.stringify(thƒis.state.selectedPumps)}</p>*/}
         </div>
 
+
+        {/*REFERENCE MOVE*/}
         <Form method="post"
               onSubmit={(e) => {
                 e.preventDefault();
@@ -200,6 +315,36 @@ class PumpForm extends Component {
               }}>
 
           <FormGroup className="refill-form">
+
+            <div className="refill-subform">
+              <Button color="success"
+                      disabled={this.state.selectedPumps.length === 0}
+              > Reference Move </Button>
+              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                <ModalHeader toggle={this.toogle}>Reference Move</ModalHeader>
+                <ModalBody>
+                  Detach all syringes from the pumps before continuing.
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="success" onClick={this.handleReferenceMove}> Continue </Button>
+                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                </ModalFooter>
+              </Modal>
+            </div>
+
+          </FormGroup>
+        </Form>
+
+
+        {/*REFILL FORM*/}
+        <Form method="post"
+              onSubmit={(e) => {
+                e.preventDefault();
+                this.toggle();
+              }}>
+
+          <FormGroup className="refill-form">
+
 
             <div className="refill-subform">
               <Button color="success"
@@ -213,19 +358,89 @@ class PumpForm extends Component {
                   2) insert the inlet tube into the stimulus?
                 </ModalBody>
                 <ModalFooter>
-                  <Button color="success" onClick={this.handleRefill}> Continue </Button>
+                  <Button color="success" onClick={this.handleFill}> Continue </Button>
                   <Button color="danger" onClick={this.toggle}> Cancel </Button>
                 </ModalFooter>
               </Modal>
             </div>
             <div className="refill-subform">
               <Input type="number"
-                     name="targetVolume"
+                     name="nbRepetitions"
                      min="1"
                      placeholder="No. of repetitions."
                      onChange={this.handleRepetitionsChange}
                      required/>
             </div>
+
+            <div className="refill-subform">
+
+              <Input type="number"
+                     name="targetVolume"
+                     min="0"
+                     placeholder="Target volume."
+                     onChange={this.handleTargetVolumeChange}
+                     required/>
+              <Input type="select"
+                     name="flowUnit"
+                     onChange={this.handleVolumeUnitChange}>
+                {/*<option value={this.state.volumeUnit}>HEJ</option>*/}
+                {/*<option value={this.state.volumeUnit}>{this.state.volumeUnit.toString()}</option>*/}
+                <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
+                <option value="cL_form">cL</option>
+              </Input>
+            </div>
+
+
+            <div className="refill-subform">
+              <div className="flowrate-subform">
+                <Input type="number"
+                       name="flowRate"
+                       min="0"
+                       placeholder="Flow rate."
+                       onChange={this.handleFlowRateChange}
+                       required/>
+                <Input type="select"
+                       name="flowUnit"
+                       onChange={this.handleFlowUnitChange}>
+                  <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                  <option value="mL/min">mL/min</option>
+                  <option value="cL/s">cL/s</option>
+                  <option value="cL/min">cL/min</option>
+                </Input>
+              </div>
+            </div>
+
+          </FormGroup>
+        </Form>
+
+
+        {/*BUBBLE CYCLE FORM*/}
+        <Form method="post"
+              onSubmit={(e) => {
+                e.preventDefault();
+                this.toggle();
+              }}>
+
+          <FormGroup className="refill-form">
+
+            <div className="refill-subform">
+              <Button color="success"
+                      disabled={this.state.selectedPumps.length === 0}
+              > Bubble Cycle </Button>
+              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
+                <ModalBody>
+                  Have you remembered to:
+                  1) remove the spray head from the outlet?
+                  2) insert the inlet tube into the stimulus?
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="success" onClick={this.handleBubbleCycle}> Continue </Button>
+                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                </ModalFooter>
+              </Modal>
+            </div>
+
 
             <div className="refill-subform">
               <Input type="number"
@@ -245,8 +460,67 @@ class PumpForm extends Component {
             </div>
 
             <div className="refill-subform">
+              <div className="flowrate-subform">
+                <Input type="number"
+                       name="flowRate"
+                       min="0"
+                       placeholder="Flow rate."
+                       onChange={this.handleFlowRateChange}
+                       required/>
+                <Input type="select"
+                       name="flowUnit"
+                       onChange={this.handleFlowUnitChange}>
+                  <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                  <option value="mL/min">mL/min</option>
+                  <option value="cL/s">cL/s</option>
+                  <option value="cL/min">cL/min</option>
+                </Input>
+              </div>
+            </div>
+
+          </FormGroup>
+        </Form>
+
+
+        {/*RINSE FORM*/}
+        <Form method="post"
+              onSubmit={(e) => {
+                e.preventDefault();
+                this.toggle();
+              }}>
+
+          <FormGroup className="refill-form">
+
+            <div className="refill-subform">
+              <Button color="success"
+                      disabled={this.state.selectedPumps.length === 0}
+              > Rinse </Button>
+              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                <ModalHeader toggle={this.toogle}>Rinse</ModalHeader>
+                <ModalBody>
+                  Have you remembered to:
+                  1) remove the spray head from the outlet?
+                  2) insert the inlet tube into the stimulus?
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="success" onClick={this.handleRinse}> Continue </Button>
+                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                </ModalFooter>
+              </Modal>
+            </div>
+
+            <div className="refill-subform">
               <Input type="number"
-                     name="targetVolume"
+                     name="nbRepetitions"
+                     min="1"
+                     placeholder="No. of repetitions."
+                     onChange={this.handleRepetitionsChange}
+                     required/>
+            </div>
+
+            <div className="refill-subform">
+              <Input type="number"
+                     name="flowRate"
                      min="0"
                      placeholder="Flow rate."
                      onChange={this.handleFlowRateChange}
@@ -263,6 +537,64 @@ class PumpForm extends Component {
 
           </FormGroup>
         </Form>
+
+        {/*EMPTY FORM*/}
+        <Form method="post"
+              onSubmit={(e) => {
+                e.preventDefault();
+                this.toggle();
+              }}>
+
+          <FormGroup className="refill-form">
+
+            <div className="refill-subform">
+              <Button color="success"
+                      disabled={this.state.selectedPumps.length === 0}
+              > Empty </Button>
+              <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+                <ModalHeader toggle={this.toogle}>Empty</ModalHeader>
+                <ModalBody>
+                  Have you remembered to:
+                  1) remove the spray head from the outlet?
+                  2) insert the inlet tube into the stimulus?
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="success" onClick={this.handleEmpty}> Continue </Button>
+                  <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                </ModalFooter>
+              </Modal>
+            </div>
+
+            <div className="refill-subform">
+              <Input type="number"
+                     name="nbRepetitions"
+                     min="1"
+                     placeholder="No. of repetitions."
+                     onChange={this.handleRepetitionsChange}
+                     required/>
+            </div>
+
+            <div className="refill-subform">
+              <Input type="number"
+                     name="flowRate"
+                     min="0"
+                     placeholder="Flow rate."
+                     onChange={this.handleFlowRateChange}
+                     required/>
+              <Input type="select"
+                     name="flowUnit"
+                     onChange={this.handleFlowUnitChange}>
+                <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                <option value="mL/min">mL/min</option>
+                <option value="cL/s">cL/s</option>
+                <option value="cL/min">cL/min</option>
+              </Input>
+            </div>
+
+          </FormGroup>
+        </Form>
+
+
       </div>
     )
   }

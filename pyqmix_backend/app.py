@@ -1,6 +1,6 @@
 from flask import Flask, request
 from flask_restplus import Api, Resource
-from flask_restplus.fields import Float, Boolean, String
+from flask_restplus.fields import Float, Boolean, String, Nested
 from pyqmix import QmixBus, config, QmixPump
 import os.path as op
 import time
@@ -16,10 +16,10 @@ session_paramters = {
 ## --- Choose session type --- ##
 app.config.from_object(__name__)
 app.config['test_session'] = True
-app.secret_key = 'Camilla'
+app.secret_key = 'secret_key'
 
 ## --- Flask-RESTPlus models --- ##
-pump_client_request = api.model('Refill request', {
+pump_client_request = api.model('Pumping request', {
     'targetVolume': Float(description='Target volume',
                         required=True,
                         example=5.0),
@@ -33,10 +33,17 @@ pump_client_request = api.model('Refill request', {
                       required=True,
                       example='mL/s')})
 
+pump_client_request_nested = api.model('Pump request', {
+    'action': String(description='action',
+                        required=True,
+                        example='referenceMove'),
+    'params': Nested(pump_client_request)})
+
 initiate_pumps_request = api.model('Initiate pumps', {
     'PumpInitiate': Boolean(desription='Initiate pumps',
                         required=True,
                         example=True)})
+
 
 ## --- Endpoints --- ##
 
@@ -81,16 +88,21 @@ class Pumps(Resource):
 
         return pump_status
 
-    @api.expect(pump_client_request)
+    @api.expect(pump_client_request_nested)
     def put(self, pump_id):
         payload = request.json
-        target_volume = payload['targetVolume']
-        volume_unit = payload['volumeUnit']
-        flow_rate = payload['flowRate']
-        flow_unit = payload['flowUnit']
+        action = payload['action']
 
-        # Initiate pump command
-        start_pumping(pump_id=pump_id, target_volume=target_volume, volume_unit=volume_unit, flow_rate=flow_rate, flow_unit=flow_unit)
+        if action == 'referenceMove':
+            pump_reference_move(pump_id)
+        elif action == 'empty' or action == 'fill' or action == 'fillToLevel':
+            target_volume = session_paramters['pumps'][pump_id]
+            volume_unit = payload['params']['volumeUnit']
+            flow_rate = payload['params']['flowRate']
+            flow_unit = payload['params']['flowUnit']
+
+            # Initiate pump command
+            pump_set_fill_level(pump_id=pump_id, target_volume=target_volume, volume_unit=volume_unit, flow_rate=flow_rate, flow_unit=flow_unit)
 
         return 201
 
@@ -133,16 +145,6 @@ def disconnect_pumps():
 
     session_paramters['pumps'] = {}
 
-def start_pumping(pump_id, target_volume, volume_unit, flow_rate, flow_unit):
-
-    if app.config['test_session']:
-        print(f'Starting virtual pump: {pump_id} and setting '
-              f'target_volume to {target_volume} {volume_unit} '
-              f'at {flow_rate} {flow_unit}')
-    else:
-        session_paramters['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
-
-
 def get_pump_state(pump_id):
 
     pump = session_paramters['pumps'][pump_id]
@@ -167,6 +169,17 @@ def get_pump_state(pump_id):
             'name': pump.name}
 
     return pump_status
+
+def pump_set_fill_level(pump_id, target_volume, volume_unit, flow_rate, flow_unit):
+
+    if app.config['test_session']:
+        print(f'Starting virtual pump: {pump_id} and setting '
+              f'target_volume to {target_volume} {volume_unit} '
+              f'at {flow_rate} {flow_unit}')
+    else:
+        session_paramters['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
+
+
 
 if __name__ == '__main__':
     app.run()
