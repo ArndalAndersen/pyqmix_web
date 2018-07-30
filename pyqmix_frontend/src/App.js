@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Button, ButtonGroup, FormGroup, Input, Modal,
-  ModalHeader, ModalBody, ModalFooter, Form} from 'reactstrap';
+  ModalHeader, ModalBody, ModalFooter, Form, Label, FormText} from 'reactstrap';
 import logo from './snake.svg';
 import './App.css';
 
@@ -10,21 +10,25 @@ class PumpForm extends Component {
     connectedToPumps: false,  // Are the pumps connected?
     detectedPumps: [],  // Pumps detected in system
     selectedPumps: [],  // Pumps selected by user. Index of pumps in state.pumps.
+    isPumpConfigSetUp: false,
     pumps: [],
     nbRep: 0,
     targetVolume: [],
     volumeUnit: "mL",
     flowRate: [],
     flowUnit: "mL/s",
-    modal_specific: {
+    modal: {
       'referenceMove': false,
       'fill': false,
       'bubbleCycleStart': false,
       'rinse': false,
       'empty': false,
-      'bubbleCycleEnd': false
+      'bubbleCycleEnd': false,
+      'locateConfigFiles': false
     },
-    minSyringeSize: ""
+    minSyringeSize: "",
+    dllFileLocation: "",
+    configFileLocation: ""
   };
 
   // Update state by input-fields
@@ -33,13 +37,15 @@ class PumpForm extends Component {
   handleVolumeUnitChange = (e) => this.setState({volumeUnit: e.target.value});
   handleFlowRateChange = (e) => this.setState({flowRate: e.target.value});
   handleFlowUnitChange = (e) => this.setState({flowUnit: e.target.value});
+  handledllFileLocationChange = (e) => this.setState({dllFileLocation: e.target.value});
+  handleconfigFileLocationChange = (e) => this.setState({configFileLocation: e.target.value});
 
 
   toggle = (modalType) => {
 
-    let modals = this.state.modal_specific;
+    let modals = this.state.modal;
     modals[modalType] = !modals[modalType];
-    this.setState({modal_specific: modals})
+    this.setState({modal: modals})
 
   };
 
@@ -56,12 +62,65 @@ class PumpForm extends Component {
 
   };
 
+
+  handleConfigFiles = async (e) => {
+
+    // Ask backend whether the pump configuration is set up
+    if (this.state.isPumpConfigSetUp === false) {
+      await this.getPumpStates()
+    }
+
+    console.log('Is Pump config set up?')
+    console.log(this.state.isPumpConfigSetUp)
+
+    // User must set up the pump configuration if it was not set up in the backend
+    if (this.state.isPumpConfigSetUp === false && this.state.connectedToPumps === false) {
+
+      this.toggle('locateConfigFiles');
+
+      await this.waitForConfigFilesToBeSet();
+
+      // Send the files to the backend
+      let payload;
+      payload = {'dllDir': this.state.dllFileLocation,
+        'configDir': this.state.configFileLocation};
+      const response = await fetch('/api/config', {
+        method: 'put',
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Could I potentially get a response which shows that the file paths were correct?
+      // await response.json()
+
+    }
+    this.handleConnectPumps();
+  };
+
+  waitForConfigFilesToBeSet = async () => {
+    do {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } while (this.state.isPumpConfigSetUp === false);
+  };
+
+  handleLocatingConfig = () => {
+    this.toggle('locateConfigFiles');
+
+    this.setState({isPumpConfigSetUp: !this.state.isPumpConfigSetUp})
+  };
+
   // Detect pumps and return a list of them
-  handleDetectPumps = (e) => {
+  handleConnectPumps = (e) => {
+
     this.setState({connectedToPumps: !this.state.connectedToPumps},
       async () => {
         let payload = {pumpInitiate: this.state.connectedToPumps};
-        console.log(payload); //example from html script, not sure whether it would work here
+        console.log('Connect to pumps:');
+        console.log(payload);
+
         const response = await fetch('/api/pumps', {
           method: 'put',
           headers: {
@@ -71,11 +130,9 @@ class PumpForm extends Component {
           body: JSON.stringify(payload)
         });
 
-        // Browse for config file and dll-folder if it was not already found
+        // Update state with the detected pumps
         const json = await response.json();
-        if (response.ok) {
-          this.setState({detectedPumps: json});
-        }
+        this.setState({detectedPumps: json});
 
         // Unselect pumps if they are disconnected, and get all pumps' state if connected
         if (this.state.connectedToPumps === false) {
@@ -90,7 +147,9 @@ class PumpForm extends Component {
 
   // Reference move
   handleReferenceMove = (e) => {
-    this.toggle('referenceMove'); // To remove the modal
+
+    // To remove the modal
+    this.toggle('referenceMove');
 
     this.sendCommmandToPumps('referenceMove');
 
@@ -98,7 +157,9 @@ class PumpForm extends Component {
 
   // Refill pumps
   handleFill = (e) => {
-    this.toggle('fill'); // To remove the modal
+
+    // To remove the modal
+    this.toggle('fill');
 
     // Set pumps to fill level
     this.sendCommmandToPumps('fillToLevel');
@@ -119,7 +180,9 @@ class PumpForm extends Component {
 
   // Bubble cycle
   handleBubbleCycleStart = async (e) => {
-    this.toggle('bubbleCycleStart'); // To remove the modal
+
+    // To remove the modal
+    this.toggle('bubbleCycleStart');
 
     // Fill in air
     this.sendCommmandToPumps('fillToLevel');
@@ -141,7 +204,9 @@ class PumpForm extends Component {
 
   // Rinse syringes
   handleRinse = (e) => {
-    this.toggle('rinse'); // To remove the modal
+
+    // To remove the modal
+    this.toggle('rinse');
 
     // Iterate over repetitions
     let repIndex;
@@ -162,7 +227,9 @@ class PumpForm extends Component {
 
   // Empty syringes
   handleEmpty = (e) => {
-    this.toggle('empty'); // To remove the modal
+
+    // To remove the modal
+    this.toggle('empty');
 
     // Empty syringes
     this.sendCommmandToPumps('empty');
@@ -258,7 +325,8 @@ class PumpForm extends Component {
 
     const json = await response.json();
     console.log(json);
-    this.setState({pumps: json})
+    this.setState({pumps: json['pump_states']});
+    this.setState({isPumpConfigSetUp: json['config_setup']});
 
   };
 
@@ -298,10 +366,58 @@ class PumpForm extends Component {
 
         <div className="button-group">
           <Button
-            color={this.state.connectedToPumps ? "success" : "success"}
-            onClick={this.handleDetectPumps}>
+            color="success"
+            onClick={this.handleConfigFiles}>
             {this.state.connectedToPumps ? "Disconnect pumps" : "Detect pumps"}
           </Button>
+
+
+          <Modal isOpen={this.state.modal['locateConfigFiles']} className={this.props.className}>
+            <ModalHeader>Browse for files</ModalHeader>
+            {/*<ModalBody></ModalBody>*/}
+            <ModalHeader>
+              <Form method="post"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                    }}>
+                <FormGroup>
+                  <Label for="exampleText">dll directory</Label>
+                  <FormText color="muted">
+                    For example:
+                    C:/Users/username/AppData/Local/QmixSDK
+                  </FormText>
+                  <Input
+                    onChange={this.handleconfigFileLocationChange}
+                    placeholder="C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config"
+                    type="search"
+                    name="text"
+                    required
+                    id="exampleText" />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label for="exampleText">config directory</Label>
+                  <FormText color="muted">
+                    For example:
+                    C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config
+                  </FormText>
+                  <Input
+                    onChange={this.handledllFileLocationChange}
+                    placeholder="C:/Users/au278141/AppData/Local/QmixSDK"
+                    type="textarea"
+                    name="text"
+                    id="exampleText" />
+                </FormGroup>
+              </Form>
+
+            </ModalHeader>
+            <ModalFooter>
+              <Button color="success" onClick={this.handleLocatingConfig}> Continue </Button>
+              <Button color="danger" onClick={() => this.toggle('locateConfigFiles')}> Cancel </Button>
+            </ModalFooter>
+          </Modal>
+
+
         </div>
 
         <div className="button-group">
@@ -334,7 +450,7 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Reference Move </Button>
-                  <Modal isOpen={this.state.modal_specific['referenceMove']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['referenceMove']} className={this.props.className}>
                     <ModalHeader >Reference Move</ModalHeader>
                     <ModalBody>
                       Detach all syringes from the pumps before continuing.
@@ -367,7 +483,7 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Fill </Button>
-                  <Modal isOpen={this.state.modal_specific['fill']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['fill']} className={this.props.className}>
                     <ModalHeader>Refill</ModalHeader>
                     <ModalBody>
                       Have you remembered to:
@@ -446,7 +562,7 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Empty </Button>
-                  <Modal isOpen={this.state.modal_specific['empty']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['empty']} className={this.props.className}>
                     <ModalHeader>Empty</ModalHeader>
                     <ModalBody>
                       Have you remembered to:
@@ -509,7 +625,7 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Bubble Cycle </Button>
-                  <Modal isOpen={this.state.modal_specific['bubbleCycleStart']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['bubbleCycleStart']} className={this.props.className}>
                     <ModalHeader>Bubble Cycle</ModalHeader>
                     <ModalBody>
                       Remove the inlet tube from the stimulus reservoir to aspirate air.
@@ -519,7 +635,7 @@ class PumpForm extends Component {
                       <Button color="danger" onClick={() => this.toggle('bubbleCycleStart')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
-                  <Modal isOpen={this.state.modal_specific['bubbleCycleEnd']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['bubbleCycleEnd']} className={this.props.className}>
                     <ModalHeader>Bubble Cycle</ModalHeader>
                     <ModalBody>
                       Insert to tube inlet into the stimulus reservoir to aspirate stimulus.
@@ -589,7 +705,7 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Rinse </Button>
-                  <Modal isOpen={this.state.modal_specific['rinse']} className={this.props.className}>
+                  <Modal isOpen={this.state.modal['rinse']} className={this.props.className}>
                     <ModalHeader>Rinse</ModalHeader>
                     <ModalBody>
                       Have you remembered to:
