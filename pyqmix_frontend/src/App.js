@@ -16,8 +16,14 @@ class PumpForm extends Component {
     volumeUnit: "mL",
     flowRate: [],
     flowUnit: "mL/s",
-    modal: false,
-    modal_specific: {'refe': false, },
+    modal_specific: {
+      'referenceMove': false,
+      'fill': false,
+      'bubbleCycleStart': false,
+      'rinse': false,
+      'empty': false,
+      'bubbleCycleEnd': false
+    },
     minSyringeSize: ""
   };
 
@@ -29,13 +35,9 @@ class PumpForm extends Component {
   handleFlowUnitChange = (e) => this.setState({flowUnit: e.target.value});
 
 
-  // Toggle to remove the modal
-  toggle = (e) => {this.setState({modal: !this.state.modal})};
+  toggle = (modalType) => {
 
-  toggle_specific = (modalType) => {
-
-    let modals;
-    modals = this.state.modal_specific;
+    let modals = this.state.modal_specific;
     modals[modalType] = !modals[modalType];
     this.setState({modal_specific: modals})
 
@@ -88,7 +90,7 @@ class PumpForm extends Component {
 
   // Reference move
   handleReferenceMove = (e) => {
-    this.toggle_specific('referenceMove'); // To remove the modal
+    this.toggle('referenceMove'); // To remove the modal
 
     this.sendCommmandToPumps('referenceMove');
 
@@ -96,7 +98,7 @@ class PumpForm extends Component {
 
   // Refill pumps
   handleFill = (e) => {
-    this.toggle(); // To remove the modal
+    this.toggle('fill'); // To remove the modal
 
     // Set pumps to fill level
     this.sendCommmandToPumps('fillToLevel');
@@ -116,8 +118,8 @@ class PumpForm extends Component {
 
 
   // Bubble cycle
-  handleBubbleCycle = (e) => {
-    this.toggle(); // To remove the modal
+  handleBubbleCycleStart = async (e) => {
+    this.toggle('bubbleCycleStart'); // To remove the modal
 
     // Fill in air
     this.sendCommmandToPumps('fillToLevel');
@@ -125,22 +127,28 @@ class PumpForm extends Component {
     // Empty syringes
     this.sendCommmandToPumps('empty');
 
-    // Fill in stimulus
-    this.sendCommmandToPumps('fillToLevel');
+    await this.waitForPumpingToFinish();
+    this.toggle('bubbleCycleEnd');
 
   };
 
+  handleBubbleCycleEnd = (e) => {
+    this.toggle('bubbleCycleEnd');
+
+    // Fill in stimulus
+    this.sendCommmandToPumps('fillToLevel');
+  };
 
   // Rinse syringes
   handleRinse = (e) => {
-    this.toggle(); // To remove the modal
-
-    // Empty syringes
-    this.sendCommmandToPumps('empty');
+    this.toggle('rinse'); // To remove the modal
 
     // Iterate over repetitions
     let repIndex;
-    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
+    for (repIndex = 0; repIndex < this.state.nbRep; repIndex++ ) {
+
+      // Empty syringes
+      this.sendCommmandToPumps('empty');
 
       // Fill syringes
       this.sendCommmandToPumps('fill');
@@ -154,7 +162,7 @@ class PumpForm extends Component {
 
   // Empty syringes
   handleEmpty = (e) => {
-    this.toggle(); // To remove the modal
+    this.toggle('empty'); // To remove the modal
 
     // Empty syringes
     this.sendCommmandToPumps('empty');
@@ -316,7 +324,7 @@ class PumpForm extends Component {
           <Form method="post"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  this.toggle_specific('referenceMove');
+                  this.toggle('referenceMove');
                 }}>
 
             <FormGroup className="input-form">
@@ -326,14 +334,14 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Reference Move </Button>
-                  <Modal isOpen={this.state.modal_specific['referenceMove']} toggle={function() { return this.toggle_specific('referenceMove');} } className={this.props.className}>
-                    <ModalHeader toggle={() => this.toggle_specific('referenceMove')}>Reference Move</ModalHeader>
+                  <Modal isOpen={this.state.modal_specific['referenceMove']} className={this.props.className}>
+                    <ModalHeader >Reference Move</ModalHeader>
                     <ModalBody>
                       Detach all syringes from the pumps before continuing.
                     </ModalBody>
                     <ModalFooter>
                       <Button color="success" onClick={this.handleReferenceMove}> Continue </Button>
-                      <Button color="danger" onClick={() => this.toggle_specific('referenceMove')}> Cancel </Button>
+                      <Button color="danger" onClick={() => this.toggle('referenceMove')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
                 </div>
@@ -349,7 +357,7 @@ class PumpForm extends Component {
           <Form method="post"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  this.toggle();
+                  this.toggle('fill');
                 }}>
 
             <FormGroup className="input-form">
@@ -359,16 +367,17 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Fill </Button>
-                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                    <ModalHeader toggle={this.toogle}>Refill</ModalHeader>
+                  <Modal isOpen={this.state.modal_specific['fill']} className={this.props.className}>
+                    <ModalHeader>Refill</ModalHeader>
                     <ModalBody>
                       Have you remembered to:
-                      1) remove the spray head from the outlet?
-                      2) insert the inlet tube into the stimulus?
+                      1) Empty the syringe first?
+                      2) Insert the inlet tube into the stimulus?
+                      3) Remove the spray head from the outlet?
                     </ModalBody>
                     <ModalFooter>
                       <Button color="success" onClick={this.handleFill}> Continue </Button>
-                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                      <Button color="danger" onClick={() => this.toggle('fill')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
                 </div>
@@ -423,11 +432,74 @@ class PumpForm extends Component {
           </Form>
 
 
+          {/*EMPTY FORM*/}
+          <Form method="post"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  this.toggle('empty');
+                }}>
+
+            <FormGroup className="input-form">
+              <div className="row">
+
+                <div className="col-sm-3 input-subform button-subform">
+                  <Button color="success"
+                          disabled={this.state.selectedPumps.length === 0}
+                  > Empty </Button>
+                  <Modal isOpen={this.state.modal_specific['empty']} className={this.props.className}>
+                    <ModalHeader>Empty</ModalHeader>
+                    <ModalBody>
+                      Have you remembered to:
+                      1) remove the spray head from the outlet?
+                      2) remove the inlet tube from the stimulus reservoir?
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleEmpty}> Continue </Button>
+                      <Button color="danger" onClick={() => this.toggle('empty')}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+                </div>
+
+
+                <div className="col-sm-3 input-subform nrep-subform">
+                  <Input type="number"
+                         name="nbRepetitions"
+                         min="1"
+                         placeholder="No. of repetitions."
+                         onChange={this.handleRepetitionsChange}
+                         required/>
+                </div>
+
+
+                <div className="col-sm-3 input-subform volume-subform"></div>
+
+
+                <div className="col-sm-3 input-subform flowrate-subform">
+                  <Input type="number"
+                         name="flowRate"
+                         min="0"
+                         placeholder="Flow rate."
+                         onChange={this.handleFlowRateChange}
+                         required/>
+                  <Input type="select"
+                         name="flowUnit"
+                         onChange={this.handleFlowUnitChange}>
+                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
+                    <option value="mL/min">mL/min</option>
+                    <option value="cL/s">cL/s</option>
+                    <option value="cL/min">cL/min</option>
+                  </Input>
+                </div>
+              </div>
+            </FormGroup>
+
+          </Form>
+
           {/*BUBBLE CYCLE FORM*/}
           <Form method="post"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  this.toggle();
+                  this.toggle('bubbleCycleStart');
                 }}>
 
             <FormGroup className="input-form">
@@ -437,18 +509,27 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Bubble Cycle </Button>
-                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                    <ModalHeader toggle={this.toogle}>Bubble Cycle</ModalHeader>
+                  <Modal isOpen={this.state.modal_specific['bubbleCycleStart']} className={this.props.className}>
+                    <ModalHeader>Bubble Cycle</ModalHeader>
                     <ModalBody>
-                      Have you remembered to:
-                      1) remove the spray head from the outlet?
-                      2) insert the inlet tube into the stimulus?
+                      Remove the inlet tube from the stimulus reservoir to aspirate air.
                     </ModalBody>
                     <ModalFooter>
-                      <Button color="success" onClick={this.handleBubbleCycle}> Continue </Button>
-                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                      <Button color="success" onClick={this.handleBubbleCycleStart}> Continue </Button>
+                      <Button color="danger" onClick={() => this.toggle('bubbleCycleStart')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
+                  <Modal isOpen={this.state.modal_specific['bubbleCycleEnd']} className={this.props.className}>
+                    <ModalHeader>Bubble Cycle</ModalHeader>
+                    <ModalBody>
+                      Insert to tube inlet into the stimulus reservoir to aspirate stimulus.
+                    </ModalBody>
+                    <ModalFooter>
+                      <Button color="success" onClick={this.handleBubbleCycleEnd}> Continue </Button>
+                      <Button color="danger" onClick={() => this.toggle('bubbleCycleEnd')}> Cancel </Button>
+                    </ModalFooter>
+                  </Modal>
+
                 </div>
 
 
@@ -498,7 +579,7 @@ class PumpForm extends Component {
           <Form method="post"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  this.toggle();
+                  this.toggle('rinse');
                 }}>
 
             <FormGroup className="input-form">
@@ -508,80 +589,16 @@ class PumpForm extends Component {
                   <Button color="success"
                           disabled={this.state.selectedPumps.length === 0}
                   > Rinse </Button>
-                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                    <ModalHeader toggle={this.toogle}>Rinse</ModalHeader>
+                  <Modal isOpen={this.state.modal_specific['rinse']} className={this.props.className}>
+                    <ModalHeader>Rinse</ModalHeader>
                     <ModalBody>
                       Have you remembered to:
                       1) remove the spray head from the outlet?
-                      2) insert the inlet tube into the stimulus?
+                      2) insert the inlet tube into the rinsing fluid?
                     </ModalBody>
                     <ModalFooter>
                       <Button color="success" onClick={this.handleRinse}> Continue </Button>
-                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
-                    </ModalFooter>
-                  </Modal>
-                </div>
-
-
-                <div className="col-sm-3 input-subform nrep-subform">
-                  <Input type="number"
-                         name="nbRepetitions"
-                         min="1"
-                         placeholder="No. of repetitions."
-                         onChange={this.handleRepetitionsChange}
-                         required/>
-                </div>
-
-
-                <div className="col-sm-3 input-subform volume-subform"></div>
-
-
-                <div className="col-sm-3 input-subform flowrate-subform">
-                  <Input type="number"
-                         name="flowRate"
-                         min="0"
-                         placeholder="Flow rate."
-                         onChange={this.handleFlowRateChange}
-                         required/>
-                  <Input type="select"
-                         name="flowUnit"
-                         onChange={this.handleFlowUnitChange}>
-                    <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
-                    <option value="mL/min">mL/min</option>
-                    <option value="cL/s">cL/s</option>
-                    <option value="cL/min">cL/min</option>
-                  </Input>
-                </div>
-              </div>
-            </FormGroup>
-
-          </Form>
-
-
-          {/*EMPTY FORM*/}
-          <Form method="post"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  this.toggle();
-                }}>
-
-            <FormGroup className="input-form">
-              <div className="row">
-
-                <div className="col-sm-3 input-subform button-subform">
-                  <Button color="success"
-                          disabled={this.state.selectedPumps.length === 0}
-                  > Empty </Button>
-                  <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
-                    <ModalHeader toggle={this.toogle}>Empty</ModalHeader>
-                    <ModalBody>
-                      Have you remembered to:
-                      1) remove the spray head from the outlet?
-                      2) insert the inlet tube into the stimulus?
-                    </ModalBody>
-                    <ModalFooter>
-                      <Button color="success" onClick={this.handleEmpty}> Continue </Button>
-                      <Button color="danger" onClick={this.toggle}> Cancel </Button>
+                      <Button color="danger" onClick={() => this.toggle('rinse')}> Cancel </Button>
                     </ModalFooter>
                   </Modal>
                 </div>
