@@ -3,6 +3,7 @@ from flask_restplus import Api, Resource
 from flask_restplus.fields import Float, Boolean, String, Nested
 from pyqmix import QmixBus, config, QmixPump
 import os.path as op
+from collections import OrderedDict
 
 app = Flask(__name__)
 api = Api(app)
@@ -11,6 +12,10 @@ session_paramters = {
     'bus': None,
     'pumps': {},  # Dictionary of pump objects
     'get_pumps_states_call_count': 0}  # Initiate pumps in test scenario
+
+flow_param = OrderedDict([('prefix', 'milli'),
+                          ('volume_unit', 'litres'),
+                          ('time_unit', 'per_second')])
 
 ## --- Choose session type --- ##
 app.config.from_object(__name__)
@@ -23,33 +28,27 @@ config_setup = api.model('config setup' , {
                      required=True,
                      example='C:/Users/username/AppData/Local/QmixSDK'),
     'configDir': String(description='Path to config directory',
-                     required=True,
-                     example='C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config')})
+                        required=True,
+                        example='C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config')})
 
 pump_client_request = api.model('Pumping request', {
     'targetVolume': Float(description='Target volume',
-                        required=True,
-                        example=5.0),
-    'volumeUnit': String(description='Volume unit',
-                        required=True,
-                        example='mL'),
+                          required=True,
+                          example=5.0),
     'flowRate': Float(description='Flow rate',
-                       required=True,
-                       example=0.25),
-    'flowUnit': String(description='Flow unit',
                       required=True,
-                      example='mL/s')})
+                      example=0.25)})
 
 pump_client_request_nested = api.model('Pump request', {
     'action': String(description='action',
-                        required=True,
-                        example='referenceMove'),
+                     required=True,
+                     example='referenceMove'),
     'params': Nested(pump_client_request)})
 
 initiate_or_disconnect_pumps = api.model('Initiate pumps', {
     'PumpInitiate': Boolean(desription='Initiate pumps',
-                        required=True,
-                        example=True)})
+                            required=True,
+                            example=True)})
 
 
 ## --- Endpoints --- ##
@@ -87,7 +86,7 @@ class InitiateOrDisconnectPumps(Resource):
             pump_state = get_pump_state(pump_id)
             pump_states.append(pump_state)
 
-        # Return status of pump-estup
+        # Return status of pump-setup
         config_setup = is_config_set_up()
 
         system_state = {'config_setup': config_setup, 'pump_states': pump_states}
@@ -101,13 +100,11 @@ class InitiateOrDisconnectPumps(Resource):
         print(f'Initiate pumps: {initiate_pumps}')
 
         if initiate_pumps:
-            connect_pumps()
+            status = connect_pumps()
         else:
-            disconnect_pumps()
+            status = disconnect_pumps()
 
-        available_pumps = list(session_paramters['pumps'].keys())
-        return available_pumps
-
+        return status
 
 
 @api.route('/api/pumps/<int:pump_id>')
@@ -126,13 +123,12 @@ class Pumps(Resource):
         if action == 'referenceMove':
             pump_reference_move(pump_id)
         elif action == 'empty' or action == 'fill' or action == 'fillToLevel':
-            target_volume = session_paramters['pumps'][pump_id]
-            volume_unit = payload['params']['volumeUnit']
+            pump_id = session_paramters['pumps'][pump_id]
+            target_volume = payload['params']['targetVolume']
             flow_rate = payload['params']['flowRate']
-            flow_unit = payload['params']['flowUnit']
 
             # Initiate pump command
-            pump_set_fill_level(pump_id=pump_id, target_volume=target_volume, volume_unit=volume_unit, flow_rate=flow_rate, flow_unit=flow_unit)
+            pump_set_fill_level(pump_id=pump_id, target_volume=target_volume, flow_rate=flow_rate)
 
         return 201
 
@@ -141,7 +137,10 @@ class Pumps(Resource):
 def is_config_set_up():
 
     if app.config['test_session']:
-        return False
+        if session_paramters['get_pumps_states_call_count'] < 2:
+            return False
+        else:
+            return True
     else:
         if not config.read_config()['qmix_dll_dir'] or not config.read_config()['qmix_config_dir']:
             return False
@@ -152,8 +151,8 @@ def set_up_config(dll_dir, config_dir):
 
 
     if app.config['test_session']:
-        print(f'config is set up using dll path: {dll_dir}'
-        f'and config path: {config_dir}')
+        print(f'Pump configuration is set up using dll path: {dll_dir}'
+              f' and config path: {config_dir}')
     else:
         config.set_qmix_config_dir(config_dir)
         config.set_qmix_dll_dir(dll_dir)
@@ -164,14 +163,22 @@ def connect_pumps():
     if app.config['test_session']:
         available_pumps = list(range(0, 5))
         pump_objects = list(range(0, 5))
+        session_paramters['pumps'] = dict(zip(available_pumps, pump_objects))
         session_paramters['bus'] = 'I am a Qmix Bus.'
+        return True
     else:
-        session_paramters['bus'] = QmixBus()
-        nb_pumps = QmixPump(index=0).n_pumps
-        available_pumps = [str(i) for i in range(0,nb_pumps)]
-        pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
+        try:
+            session_paramters['bus'] = QmixBus()
+            nb_pumps = QmixPump(index=0).n_pumps
+            pumps_id = [str(i) for i in range(0, nb_pumps)]
+            pump_objects = [QmixPump(index=pump_index) for pump_index in range(0, nb_pumps)]
+            session_paramters['pumps'] = dict(zip(pumps_id, pump_objects))
+            [standardize_syringe_parameter(pump_id=p) for p in pumps_id]
+            return True
+        except:
+            # If the bus connection could not be established
+            return False
 
-    session_paramters['pumps'] = dict(zip(available_pumps, pump_objects))
 
 def disconnect_pumps():
 
@@ -185,39 +192,68 @@ def disconnect_pumps():
 
     session_paramters['pumps'] = {}
 
+    return True
+
 def get_pump_state(pump_id):
 
     pump = session_paramters['pumps'][pump_id]
 
     if app.config['test_session']:
         pump_status = {
-            'index': pump_id,
-            'isPumping': session_paramters['get_pumps_states_call_count'] % 5 != 0,
+            'pump_id': pump_id,
+            'is_pumping': session_paramters['get_pumps_states_call_count'] % 5 != 0,
             'fill_level': 20,
             'volume_unit': 'mL',
             'name': 'Midpressure 3',
             'syringe_volume': 25,
+            'max_flow_rate': 2.5,
             'syringe_volume_unit': 'mL'}
 
     else:
         pump_status = {
             'index': pump_id,
-            'is_pumping': pump.ispumping,
+            'max_flow_rate': pump.max_flow_rate,
+            'is_pumping': pump.is_pumping,
             'fill_level': pump.fill_level,
-            'volume_unit': pump.volume_unit,
             'name': pump.name}
 
     return pump_status
 
-def pump_set_fill_level(pump_id, target_volume, volume_unit, flow_rate, flow_unit):
+def pump_set_fill_level(pump_id, target_volume, flow_rate):
 
     if app.config['test_session']:
         print(f'Starting virtual pump: {pump_id} and setting '
-              f'target_volume to {target_volume} {volume_unit} '
-              f'at {flow_rate} {flow_unit}')
+              f'target_volume to {target_volume} mL '
+              f'at {flow_rate} mL/s')
     else:
-        session_paramters['pumps'][str(pump_id)].set_fill_level()  # Not done. Insert parameters!
+        session_paramters['pumps'][str(pump_id)].set_fill_level(level=target_volume, flow_rate=flow_rate)
 
+def pump_reference_move(pump_id):
+
+    if app.config['test_session']:
+        print(f'Calibrating virtual pump: {pump_id}')
+    else:
+        session_paramters['pumps'][str(pump_id)].calibrate()
+
+def standardize_syringe_parameter(pump_id):
+
+    # The frontend only sends requests in the unit of mL.
+    # The syringe is therefore set to run with mL.
+
+    pump = session_paramters['pumps'][str(pump_id)]
+
+    if app.config['test_session']:
+        pass
+    else:
+        pump.set_flow_unit(prefix=flow_param['prefix'],
+                           volume_unit=flow_param['volume_unit'],
+                           time_unit=flow_param['time_unit'])
+
+        pump.set_volume_unit(prefix='milli', unit='litres')
+
+        # Need this as an input instead!
+        pump.set_syringe_params(inner_diameter_mm=23.0329,
+                                max_piston_stroke_mm=60)
 
 
 if __name__ == '__main__':
