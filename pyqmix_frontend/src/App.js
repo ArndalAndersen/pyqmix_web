@@ -54,11 +54,16 @@ class PumpForm extends Component {
   };
 
   makeConversionFactorOfVolumeUnitToMilliLitres = async (e) => {
-    if (e === "mL") {
-      this.setState({volumeUnitConversionFactorToMilliLitres: 1})
-    } else if (e === "cL") {
-      this.setState({volumeUnitConversionFactorToMilliLitres: 10})
+    let factor;
+    switch (e) {
+      case "mL":
+        factor = 1;
+        break;
+      case "cL":
+        factor = 10;
+        break;
     }
+    this.setState({volumeUnitConversionFactorToMilliLitres: factor});
   };
 
   setVolumeMilliLitresState = () => {
@@ -80,16 +85,24 @@ class PumpForm extends Component {
     this.maximumFlowRate();
   };
 
+
   makeConversionFactorOfFlowUnitToMilliLitres = async (e) => {
-    if (e === "mL/s") {
-      this.setState({flowUnitConversionFactorToMilliLitresPerMinute: 1})
-    } else if (e === "cL/s") {
-      this.setState({flowUnitConversionFactorToMilliLitresPerMinute: 10})
-    } else if (e === "mL/min") {
-      this.setState({flowUnitConversionFactorToMilliLitresPerMinute: 1/60})
-    } else if (e === "cL/min") {
-      this.setState({flowUnitConversionFactorToMilliLitresPerMinute: 1/6})
+    let factor;
+    switch (e) {
+      case "mL/s":
+        factor = 1;
+        break;
+      case "cL/s":
+        factor = 10;
+        break;
+      case "mL/min":
+        factor = 1/60;
+        break;
+      case "cL/min":
+        factor = 1/6;
+        break;
     }
+    this.setState({flowUnitConversionFactorToMilliLitresPerMinute: factor})
   };
 
   setFlowMilliLitresState = () => {
@@ -428,7 +441,6 @@ class PumpForm extends Component {
       console.log('Maximum allowed volume of selected syringes is now: ' + smallestSyringeSize.toString());
       this.setState({smallestSyringeSize: smallestSyringeSize.toString()})
     } else {this.setState({smallestSyringeSize: "300"})}
-
   };
 
   maximumFlowRate = () => {
@@ -590,7 +602,6 @@ class PumpForm extends Component {
                          min="1"
                          placeholder="No. of repetitions."
                          onChange={this.handleRepetitionsChange}
-                         onSubmit={this.handleRepetitionsChange}
                          required/>
                 </div>
 
@@ -604,11 +615,9 @@ class PumpForm extends Component {
                          max={this.state.smallestSyringeSize}
                          placeholder="Target volume."
                          onChange={this.handleTargetVolumeChange}
-                         onSubmit={this.handleTargetVolumeChange}
                          required/>
                   <Input type="select"
                          name="volumeUnit"
-                         onSubmit={this.handleVolumeUnitChange}
                          onChange={this.handleVolumeUnitChange}>
                     <option value={this.state.volumeUnit}>{this.state.volumeUnit}</option>
                     <option value="cL">cL</option>
@@ -625,11 +634,9 @@ class PumpForm extends Component {
                          max={this.state.slowestFlowRate}
                          placeholder="Flow rate."
                          onChange={this.handleFlowRateChange}
-                         onSubmit={this.handleFlowRateChange}
                          required/>
                   <Input type="select"
                          name="flowUnit"
-                         onSubmit={this.handleFlowUnitChange}
                          onChange={this.handleFlowUnitChange}>
                     <option value={this.state.flowUnit}>{this.state.flowUnit}</option>
                     <option value="mL/min">mL/min</option>
