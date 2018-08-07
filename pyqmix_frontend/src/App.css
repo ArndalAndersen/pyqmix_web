@@ -76,7 +76,12 @@ body {
 }
 
 .text-area-input {
-    min-width: 100%;
+    max-width: 95%;
+}
+
+.text-modal {
+    /*white-space: pre-wrap;*/
+    white-space: pre-line;
 }
 
 /*.nrep-subform {*/

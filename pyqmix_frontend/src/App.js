@@ -475,7 +475,7 @@ class PumpForm extends Component {
           </Button>
 
           <Modal isOpen={this.state.modal['locateConfigFiles']} className={this.props.className}>
-            <ModalHeader>Browse for configuration files</ModalHeader>
+            <ModalHeader>Browse for pump setup files</ModalHeader>
             {/*<ModalBody></ModalBody>*/}
             <ModalHeader>
               <Form method="post"
@@ -483,12 +483,15 @@ class PumpForm extends Component {
                       e.preventDefault();
                     }}>
                 <FormGroup>
-                  <Label for="exampleText">dll directory</Label>
-                  <FormText color="muted">
+                  <Label for="exampleText">config directory</Label>
+                  <FormText
+                    className="text-modal"
+                    color="muted">
                     For example:
-                    C:/Users/username/AppData/Local/QmixSDK
+                    C:/Users/Public/Documents/QmixElements/.../my_own_config
                   </FormText>
                   <Input
+                    className="text-area-input"
                     onChange={this.handleConfigFileLocationChange}
                     placeholder="C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config"
                     type="textarea"
@@ -498,21 +501,23 @@ class PumpForm extends Component {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label for="exampleText">config directory</Label>
-                  <FormText color="muted">
-                    For example:
-                    C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config
+                  <Label for="exampleText">dll directory</Label>
+                  <FormText
+                    className="text-modal"
+                    color="muted">
+                    For example: <br/>
+                    C:/Users/username/AppData/Local/QmixSDK
                   </FormText>
                   <Input
-                    className={"text-area-input"}
+                    className="text-area-input"
                     onChange={this.handledllFileLocationChange}
                     placeholder="C:/Users/au278141/AppData/Local/QmixSDK"
                     name="text"
                     id="exampleText" />
                 </FormGroup>
               </Form>
-
             </ModalHeader>
+
             <ModalFooter>
               <Button color="success" onClick={this.handleLocatingConfig}> Continue </Button>
               <Button color="danger" onClick={() => this.toggle('locateConfigFiles')}> Cancel </Button>
