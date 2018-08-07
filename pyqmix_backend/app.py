@@ -33,10 +33,10 @@ config_setup = api.model('config setup' , {
 
 pump_client_request = api.model('Pumping request', {
     'targetVolume': Float(description='Target volume',
-                          required=True,
+                          required=False,
                           example=5.0),
     'flowRate': Float(description='Flow rate',
-                      required=True,
+                      required=False,
                       example=0.25)})
 
 pump_client_request_nested = api.model('Pump request', {

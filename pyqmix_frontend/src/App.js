@@ -20,7 +20,7 @@ class PumpForm extends Component {
     volumeUnitConversionFactorToMilliLitres: 1,  // standard is mL
     flowRate: [],
     flowUnit: "mL/s",
-    flowMilliLitres: [],
+    flowMilliLitresPerSecond: [],
     flowUnitConversionFactorToMilliLitresPerMinute: 1, // standard is mL
     modal: {
       'referenceMove': false,
@@ -32,7 +32,8 @@ class PumpForm extends Component {
       'locateConfigFiles': false
     },
     smallestSyringeSize: "",
-    slowestFlowRate: "",
+    maximallyAllowedFlowRateMilliLitresPerSecond: [],
+    slowestFlowRateUnitAsSpecifiedInForm: "",
     dllFileLocation: "",
     configFileLocation: ""
   };
@@ -42,7 +43,7 @@ class PumpForm extends Component {
   handledllFileLocationChange = (e) => this.setState({dllFileLocation: e.target.value});
   handleConfigFileLocationChange = (e) => this.setState({configFileLocation: e.target.value});
 
-  // Update VOLUME-related parts of the state by input fields and standardize to the unit mL which the backend runs
+  // Update VOLUME-related parts of the state by input fields and standardize to the unit: mL, which the backend runs
   handleTargetVolumeChange = async (e) => {
     await this.setState({targetVolume: e.target.value});
     this.setVolumeMilliLitresState();
@@ -75,16 +76,15 @@ class PumpForm extends Component {
     this.setState({targetVolumeMilliLitres: volume * factor});
   };
 
-  // Update FLOW-related parts of the state by input fields and standardize to the unit mL which the backend runs
+  // Update FLOW-related parts of the state by input fields and standardize to the unit: mL, which the backend runs
   handleFlowRateChange = async (e) => {
     await this.setState({flowRate: e.target.value});
-    this.setFlowMilliLitresState();
+    this.setFlowMilliLitresPerSecondState();
   };
 
-  // Use map instead !
   handleFlowUnitChange = async (e) => {
     await this.makeConversionFactorOfFlowUnitToMilliLitres(e.target.value);
-    this.setFlowMilliLitresState();
+    this.setFlowMilliLitresPerSecondState();
     this.maximumFlowRate();
   };
 
@@ -110,10 +110,10 @@ class PumpForm extends Component {
     this.setState({flowUnitConversionFactorToMilliLitresPerMinute: factor})
   };
 
-  setFlowMilliLitresState = () => {
+  setFlowMilliLitresPerSecondState = () => {
     let flowRate = this.state.flowRate;
     let factor = this.state.flowUnitConversionFactorToMilliLitresPerMinute;
-    this.setState({flowMilliLitres: flowRate * factor});
+    this.setState({flowMilliLitresPerSecond: flowRate * factor});
   };
 
   // Open and close individual modals
@@ -247,7 +247,7 @@ class PumpForm extends Component {
 
   };
 
-// Refill pumps
+// Fill pumps
   handleFill = (e) => {
 
     // To remove the modal
@@ -265,6 +265,29 @@ class PumpForm extends Component {
 
       // Set pumps to fill level
       this.sendCommmandToPumps('fillToLevel');
+
+    }
+  };
+
+
+  // Empty syringes
+  handleEmpty = (e) => {
+
+    // To remove the modal
+    this.toggle('empty');
+
+    // Empty syringes
+    this.sendCommmandToPumps('empty');
+
+    // Iterate over repetitions
+    let repIndex;
+    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
+
+      // Set pumps to fill level
+      this.sendCommmandToPumps('fill');
+
+      // Empty syringes
+      this.sendCommmandToPumps('empty');
 
     }
   };
@@ -317,29 +340,6 @@ class PumpForm extends Component {
   };
 
 
-// Empty syringes
-  handleEmpty = (e) => {
-
-    // To remove the modal
-    this.toggle('empty');
-
-    // Empty syringes
-    this.sendCommmandToPumps('empty');
-
-    // Iterate over repetitions
-    let repIndex;
-    for (repIndex = 1; repIndex < this.state.nbRep; repIndex++ ) {
-
-      // Set pumps to fill level
-      this.sendCommmandToPumps('fill');
-
-      // Empty syringes
-      this.sendCommmandToPumps('empty');
-
-    }
-  };
-
-
 // Send pump command to backend
   sendCommmandToPumps = async (action) => {
 
@@ -348,7 +348,7 @@ class PumpForm extends Component {
     let payload;
     for (let Index in this.state.selectedPumps) {
       let pumpID = this.state.selectedPumps[Index];
-      payload = this.makePumpCommand(action, pumpID);
+      payload = await this.makePumpCommand(action, pumpID);
 
       // Send information to pump-specific endpoint
       fetch('/api/pumps/'+pumpID.toString(), {
@@ -363,7 +363,11 @@ class PumpForm extends Component {
   };
 
 // Translate action to pump commands
-  makePumpCommand = (action, PumpName) => {
+  makePumpCommand = async (action, PumpName) => {
+
+    // Update what the maximally allowed fill level and flow rate
+    await this.minimumSyringeVolume();
+    await this.maximumFlowRate();
 
     let pumpCommand;
     let targetVolume;
@@ -381,22 +385,32 @@ class PumpForm extends Component {
         targetVolume = this.state.pumps[PumpName].syringe_volume
       }
 
+      // Check that flow rate is maximally the allowed flow rate
+      let flowRate;
+      let maxAllowedFlow = this.state.maximallyAllowedFlowRateMilliLitresPerSecond;
+      let selectedFlowRate = this.state.flowMilliLitresPerSecond;
+      if (selectedFlowRate > maxAllowedFlow) {
+        flowRate = maxAllowedFlow
+      } else {flowRate = selectedFlowRate}
+
       pumpCommand = {
         'action': action,
         'params': {
           'targetVolume': targetVolume,
-          'flowRate': this.state.flowMilliLitres,
+          'flowRate': flowRate,
         }
       };
+
     } else {}
     return pumpCommand
   };
 
 
   waitForPumpingToFinish = async () => {
+    await this.getPumpStates();
     do {
       console.log('Checking whether pumps are still pumping');
-      this.getPumpStates();
+      await this.getPumpStates();
       await new Promise(resolve => setTimeout(resolve, 2000));
     } while (this.state.pumps.some(x => x.is_pumping));
   };
@@ -415,8 +429,9 @@ class PumpForm extends Component {
     const json = await response.json();
     console.log('Current pump state:');
     console.log(json);
-    this.setState({pumps: json['pump_states']});
-    this.setState({isPumpConfigSetUp: json['config_setup']});
+
+    await this.asyncSetState({pumps: json['pump_states']});
+    await this.asyncSetState({isPumpConfigSetUp: json['config_setup']});
 
   };
 
@@ -448,19 +463,25 @@ class PumpForm extends Component {
     } else {this.setState({smallestSyringeSize: "300"})}
   };
 
-  maximumFlowRate = () => {
+  asyncSetState = (stateNameChange) => {
+
+    return new Promise(resolve => this.setState(stateNameChange, resolve))
+  };
+
+  maximumFlowRate = async () => {
 
     if (this.state.selectedPumps.length > 0) {
       let selectedPumps = this.state.pumps.filter( (e) => this.state.selectedPumps.includes(e.pump_id) );
       let pumpWithMinFlowRate = selectedPumps.sort((x, y) => y.max_flow_rate - x.max_flow_rate).pop();
       let slowestFlowRate = pumpWithMinFlowRate.max_flow_rate;
-      slowestFlowRate = slowestFlowRate / this.state.flowUnitConversionFactorToMilliLitresPerMinute;
-      console.log('Maximum allowed flow rate of selected syringes is now: ' + slowestFlowRate.toString());
-      this.setState({slowestFlowRate: slowestFlowRate.toString()})
-    } else {this.setState({slowestFlowRate: "5"})}
+      await this.asyncSetState({maximallyAllowedFlowRateMilliLitresPerSecond: slowestFlowRate});
+      console.log('Maximum allowed flow rate of selected syringes is now: ' + slowestFlowRate.toString() + 'mL');
+
+      let slowestFlowRateUnitAsSpecifiedInForm = slowestFlowRate / this.state.flowUnitConversionFactorToMilliLitresPerMinute;
+      await this.asyncSetState({slowestFlowRateUnitAsSpecifiedInForm: slowestFlowRateUnitAsSpecifiedInForm.toString()});
+    } else {this.setState({slowestFlowRateUnitAsSpecifiedInForm: "5"})}
 
   };
-
 
   render = () => {
     return (
@@ -639,7 +660,7 @@ class PumpForm extends Component {
                          step="any"
                          name="flowRate"
                          min="0"
-                         max={this.state.slowestFlowRate}
+                         max={this.state.slowestFlowRateUnitAsSpecifiedInForm}
                          placeholder="Flow rate."
                          onChange={this.handleFlowRateChange}
                          required/>
@@ -706,7 +727,7 @@ class PumpForm extends Component {
                          step="any"
                          name="flowRate"
                          min="0"
-                         max={this.state.slowestFlowRate}
+                         max={this.state.slowestFlowRateUnitAsSpecifiedInForm}
                          placeholder="Flow rate."
                          onChange={this.handleFlowRateChange}
                          required/>
@@ -790,7 +811,7 @@ class PumpForm extends Component {
                          step="any"
                          name="flowRate"
                          min="0"
-                         max={this.state.slowestFlowRate}
+                         max={this.state.slowestFlowRateUnitAsSpecifiedInForm}
                          placeholder="Flow rate."
                          onChange={this.handleFlowRateChange}
                          required/>
@@ -858,7 +879,7 @@ class PumpForm extends Component {
                          step="any"
                          name="flowRate"
                          min="0"
-                         max={this.state.slowestFlowRate}
+                         max={this.state.slowestFlowRateUnitAsSpecifiedInForm}
                          placeholder="Flow rate."
                          onChange={this.handleFlowRateChange}
                          required/>
