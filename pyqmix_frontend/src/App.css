@@ -75,6 +75,10 @@ body {
     /*margin: 0 0 0 10px;*/
 }
 
+.text-area-input {
+    min-width: 100%;
+}
+
 /*.nrep-subform {*/
     /*!*display: table-column;*!*/
 /*}*/

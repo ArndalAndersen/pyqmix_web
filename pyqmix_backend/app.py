@@ -149,7 +149,6 @@ def is_config_set_up():
 
 def set_up_config(dll_dir, config_dir):
 
-
     if app.config['test_session']:
         print(f'Pump configuration is set up using dll path: {dll_dir}'
               f' and config path: {config_dir}')

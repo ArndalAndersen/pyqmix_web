@@ -11,6 +11,7 @@ class PumpForm extends Component {
     detectedPumps: [],  // List of pump_ID's detected in system
     selectedPumps: [],  // pump_ID's selected by user. Index of pumps in state.pumps.
     isPumpConfigSetUp: false,
+    userEnteredPumpConfig: false,
     pumps: [],
     nbRep: 0,
     targetVolume: [],
@@ -62,6 +63,8 @@ class PumpForm extends Component {
       case "cL":
         factor = 10;
         break;
+      default:
+        console.log('An unknown volume unit was used')
     }
     this.setState({volumeUnitConversionFactorToMilliLitres: factor});
   };
@@ -101,6 +104,8 @@ class PumpForm extends Component {
       case "cL/min":
         factor = 1/6;
         break;
+      default:
+        console.log('An unknown flow-rate unit was used')
     }
     this.setState({flowUnitConversionFactorToMilliLitresPerMinute: factor})
   };
@@ -499,9 +504,9 @@ class PumpForm extends Component {
                     C:/Users/Public/Documents/QmixElements/Projects/default_project/Configurations/my_own_config
                   </FormText>
                   <Input
+                    className={"text-area-input"}
                     onChange={this.handledllFileLocationChange}
                     placeholder="C:/Users/au278141/AppData/Local/QmixSDK"
-                    type="textarea"
                     name="text"
                     id="exampleText" />
                 </FormGroup>
@@ -513,7 +518,6 @@ class PumpForm extends Component {
               <Button color="danger" onClick={() => this.toggle('locateConfigFiles')}> Cancel </Button>
             </ModalFooter>
           </Modal>
-
 
         </div>
 
@@ -604,7 +608,6 @@ class PumpForm extends Component {
                          onChange={this.handleRepetitionsChange}
                          required/>
                 </div>
-
 
                 <div className="col-sm-3 input-subform volume-subform">
                   <Input type="number"
